@@ -13,6 +13,8 @@ import static android.os.SystemClock.uptimeMillis;
  * Created by houxh on 15/3/12.
  */
 public class VOIPSession implements VOIPObserver {
+
+
     public static final int VOIP_LISTENING = 0;
     public static final int VOIP_DIALING = 1;//呼叫对方
     public static final int VOIP_CONNECTED = 2;//通话连接成功
@@ -71,12 +73,12 @@ public class VOIPSession implements VOIPObserver {
     };
 
 
-    public VOIPSession(long currentUID, long peerUID,  int voipPort, String stunServer) {
+    public VOIPSession(long currentUID, long peerUID) {
         state = VOIP_ACCEPTING;
         this.currentUID = currentUID;
         this.peerUID = peerUID;
-        this.voipPort = voipPort;
-        this.stunServer = stunServer;
+        this.voipPort = VOIP_PORT;
+        this.stunServer = STUN_SERVER;
     }
 
     public void setObserver(VOIPSessionObserver ob) {

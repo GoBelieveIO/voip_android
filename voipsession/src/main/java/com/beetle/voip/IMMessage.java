@@ -10,27 +10,23 @@ import java.util.Arrays;
 
 
 class Command{
-    public static final int MSG_HEARTBEAT = 1;
-    public static final int MSG_AUTH = 2;
     public static final int MSG_AUTH_STATUS = 3;
-    public static final int MSG_IM = 4;
-    public static final int MSG_ACK = 5;
-    public static final int MSG_RST = 6;
-    public static final int MSG_GROUP_NOTIFICATION = 7;
-    public static final int MSG_GROUP_IM = 8;
-    public static final int MSG_PEER_ACK = 9;
-    public static final int MSG_INPUTTING = 10;
-    public static final int MSG_SUBSCRIBE_ONLINE_STATE = 11;
-    public static final int MSG_ONLINE_STATE = 12;
     public static final int MSG_PING = 13;
     public static final int MSG_PONG = 14;
+    public static final int MSG_AUTH_TOKEN = 15;
+
 
     public static final int MSG_VOIP_CONTROL = 64;
-    public static final int MSG_VOIP_DATA = 65;
 }
 
 
 
+
+class AuthenticationToken {
+    public String token;
+    public int platformID;
+    public String deviceID;
+}
 
 
 class Message {
@@ -48,14 +44,26 @@ class Message {
         buf[pos] = (byte)cmd;
         pos += 4;
 
-        if (cmd == Command.MSG_HEARTBEAT || cmd == Command.MSG_PING) {
+        if (cmd == Command.MSG_PING) {
             return Arrays.copyOf(buf, HEAD_SIZE);
-        } else if (cmd == Command.MSG_AUTH) {
-            BytePacket.writeInt64((Long) body, buf, pos);
-            return Arrays.copyOf(buf, HEAD_SIZE+8);
-        } else if (cmd == Command.MSG_ACK) {
-            BytePacket.writeInt32((Integer)body, buf, pos);
-            return Arrays.copyOf(buf, HEAD_SIZE+4);
+        } else if (cmd == Command.MSG_AUTH_TOKEN) {
+            AuthenticationToken auth = (AuthenticationToken)body;
+            buf[pos] = (byte)auth.platformID;
+            pos++;
+            byte[] token = auth.token.getBytes();
+            buf[pos] = (byte)token.length;
+            pos++;
+            System.arraycopy(token, 0, buf, pos, token.length);
+            pos += token.length;
+
+            byte[] deviceID = auth.deviceID.getBytes();
+            buf[pos] = (byte)deviceID.length;
+            pos++;
+            System.arraycopy(deviceID, 0, buf, pos, deviceID.length);
+            pos += deviceID.length;
+
+            return Arrays.copyOf(buf, pos);
+
         } else if (cmd == Command.MSG_VOIP_CONTROL) {
             VOIPControl ctl = (VOIPControl)body;
             BytePacket.writeInt64(ctl.sender, buf, pos);
@@ -93,15 +101,9 @@ class Message {
         pos += 4;
         cmd = data[pos];
         pos += 4;
-        if (cmd == Command.MSG_RST) {
-            return true;
-        } else if (cmd == Command.MSG_AUTH_STATUS) {
+        if (cmd == Command.MSG_AUTH_STATUS) {
             int status = BytePacket.readInt32(data, pos);
             this.body = new Integer(status);
-            return true;
-        } else if (cmd == Command.MSG_ACK) {
-            int s = BytePacket.readInt32(data, pos);
-            this.body = new Integer(s);
             return true;
         } else if (cmd == Command.MSG_VOIP_CONTROL) {
             VOIPControl ctl = new VOIPControl();
@@ -128,7 +130,7 @@ class Message {
         } else if (cmd == Command.MSG_PONG) {
             return true;
         } else {
-            return false;
+            return true;
         }
     }
 }

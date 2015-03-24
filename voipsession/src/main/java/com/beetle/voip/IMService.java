@@ -1,6 +1,12 @@
 package com.beetle.voip;
 
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.util.Log;
 import com.beetle.AsyncTCP;
@@ -20,6 +26,9 @@ import static android.os.SystemClock.uptimeMillis;
  */
 public class IMService {
 
+    private final String HOST = "voipnode.gobelieve.io";
+    private final int PORT = 20000;
+
     public enum ConnectState {
         STATE_UNCONNECTED,
         STATE_CONNECTING,
@@ -31,6 +40,10 @@ public class IMService {
     private final int HEARTBEAT = 60*3;
     private AsyncTCP tcp;
     private boolean stopped = true;
+    private boolean suspended = true;
+    private boolean reachable = true;
+    private boolean isBackground = false;
+
     private Timer connectTimer;
     private Timer heartbeatTimer;
     private int pingTimestamp = 0;
@@ -41,9 +54,11 @@ public class IMService {
     private String hostIP;
     private int timestamp;
 
-    private String host;
-    private int port;
-    private long uid;
+    private String host = HOST;
+    private int port = PORT;
+    private String token;
+    private String deviceID;
+
 
     ArrayList<IMServiceObserver> observers = new ArrayList<IMServiceObserver>();
     ArrayList<VOIPObserver> voipObservers = new ArrayList<VOIPObserver>();
@@ -80,23 +95,61 @@ public class IMService {
         };
     }
 
+    public void registerConnectivityChangeReceiver(Context context) {
+        class NetworkReceiver extends BroadcastReceiver {
+            @Override
+            public void onReceive (Context context, Intent intent) {
+                if (isOnNet(context)) {
+                    Log.i(TAG, "connectivity status:on");
+                    if (!IMService.this.stopped && !IMService.this.isBackground) {
+                        Log.i(TAG, "reconnect");
+                        IMService.this.resume();
+                    }
+                } else {
+                    Log.i(TAG, "connectivity status:on");
+                    if (!IMService.this.stopped) {
+                        IMService.this.suspend();
+                    }
+                }
+            }
+            boolean isOnNet(Context context) {
+                if (null == context) {
+                    Log.e("", "context is null");
+                    return false;
+                }
+                boolean isOnNet = false;
+                ConnectivityManager connectivityManager = (ConnectivityManager) context
+                        .getSystemService(Context.CONNECTIVITY_SERVICE);
+                NetworkInfo activeNetInfo = connectivityManager.getActiveNetworkInfo();
+                if (null != activeNetInfo) {
+                    isOnNet = activeNetInfo.isConnected();
+                }
+                return isOnNet;
+            }
+        };
+
+        NetworkReceiver  receiver = new NetworkReceiver();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
+        context.registerReceiver(receiver, filter);
+    }
+
+
     public ConnectState getConnectState() {
         return connectState;
     }
-    public void setHost(String host) {
-        this.host = host;
-    }
-    public void setPort(int port) {
-        this.port = port;
-    }
-    public void setUid(long uid) {
-        this.uid = uid;
+
+    public void setToken(String token) {
+        this.token = token;
     }
 
     public String getHostIP() {
         return this.hostIP;
     }
 
+    public void setDeviceID(String deviceID) {
+        this.deviceID = deviceID;
+    }
 
     public void addObserver(IMServiceObserver ob) {
         if (observers.contains(ob)) {
@@ -120,21 +173,40 @@ public class IMService {
         voipObservers.remove(ob);
     }
 
+    public void enterBackground() {
+        Log.i(TAG, "im service enter background");
+        this.isBackground = true;
+        if (!this.stopped) {
+            suspend();
+        }
+    }
+
+    public void enterForeground() {
+        Log.i(TAG, "im service enter foreground");
+        this.isBackground = false;
+        if (!this.stopped && this.reachable) {
+            resume();
+        }
+    }
+
     public void start() {
-        if (this.uid == 0) {
-            throw new RuntimeException("NO UID PROVIDED");
+        if (this.token.length() == 0) {
+            throw new RuntimeException("NO TOKEN PROVIDED");
         }
 
         if (!this.stopped) {
             Log.i(TAG, "already started");
             return;
         }
+        Log.i(TAG, "start im service");
         this.stopped = false;
-        connectTimer.setTimer(uptimeMillis());
-        connectTimer.resume();
-
-        heartbeatTimer.setTimer(uptimeMillis(), HEARTBEAT*1000);
-        heartbeatTimer.resume();
+        if (this.reachable) {
+            this.resume();
+        }
+        //应用在后台的情况下基本不太可能调用start
+        if (this.isBackground) {
+            Log.w(TAG, "start im service when app is background");
+        }
     }
 
     public void stop() {
@@ -142,10 +214,36 @@ public class IMService {
             Log.i(TAG, "already stopped");
             return;
         }
+        Log.i(TAG, "stop im service");
         stopped = true;
+        suspend();
+    }
+
+    private void suspend() {
+        if (this.suspended) {
+            Log.i(TAG, "suspended");
+            return;
+        }
+        Log.i(TAG, "suspend im service");
+        this.suspended = true;
+
         heartbeatTimer.suspend();
         connectTimer.suspend();
         this.close();
+    }
+
+    private void resume() {
+        if (!this.suspended) {
+            return;
+        }
+        Log.i(TAG, "resume im service");
+        this.suspended = false;
+
+        connectTimer.setTimer(uptimeMillis());
+        connectTimer.resume();
+
+        heartbeatTimer.setTimer(uptimeMillis(), HEARTBEAT*1000);
+        heartbeatTimer.resume();
     }
 
     public boolean sendVOIPControl(VOIPControl ctl) {
@@ -303,6 +401,13 @@ public class IMService {
     private void handleAuthStatus(Message msg) {
         Integer status = (Integer)msg.body;
         Log.d(TAG, "auth status:" + status);
+        if (status != 0) {
+            //失效的accesstoken,2s后重新连接
+            this.connectFailCount = 2;
+            this.connectState = ConnectState.STATE_UNCONNECTED;
+            this.publishConnectState();
+            this.close();
+        }
     }
 
 
@@ -310,11 +415,6 @@ public class IMService {
     private void handleClose() {
         close();
     }
-
-    private void handleACK(Message msg) {
-
-    }
-
 
 
     private void handleVOIPControl(Message msg) {
@@ -338,9 +438,7 @@ public class IMService {
     private void handleMessage(Message msg) {
         if (msg.cmd == Command.MSG_AUTH_STATUS) {
             handleAuthStatus(msg);
-        } else if (msg.cmd == Command.MSG_ACK) {
-            handleACK(msg);
-        } else if (msg.cmd == Command.MSG_VOIP_CONTROL) {
+        }  else if (msg.cmd == Command.MSG_VOIP_CONTROL) {
             handleVOIPControl(msg);
         } else if (msg.cmd == Command.MSG_PONG) {
             handlePong();
@@ -391,10 +489,22 @@ public class IMService {
     }
 
     private void sendAuth() {
+        final int PLATFORM_ANDROID = 2;
+
         Message msg = new Message();
-        msg.cmd = Command.MSG_AUTH;
-        msg.body = new Long(this.uid);
+        msg.cmd = Command.MSG_AUTH_TOKEN;
+        AuthenticationToken auth = new AuthenticationToken();
+        auth.platformID = PLATFORM_ANDROID;
+        auth.token = this.token;
+        auth.deviceID = this.deviceID;
+        msg.body = auth;
+
         sendMessage(msg);
+
+//        Message msg = new Message();
+//        msg.cmd = Command.MSG_AUTH;
+//        msg.body = new Long(this.uid);
+//        sendMessage(msg);
     }
 
     private void sendPing() {
