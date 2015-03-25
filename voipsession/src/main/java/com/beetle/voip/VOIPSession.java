@@ -42,6 +42,7 @@ public class VOIPSession implements VOIPObserver {
     public VOIPControl.NatPortMap localNatMap;
     public VOIPControl.NatPortMap peerNatMap;
 
+    private String relayIP;
 
     private int dialCount;
     private long dialBeginTimestamp;
@@ -55,7 +56,7 @@ public class VOIPSession implements VOIPObserver {
 
     private VOIPSessionObserver observer;
 
-    public int state;
+    private int state;
 
 
     public static interface VOIPSessionObserver  {
@@ -80,6 +81,11 @@ public class VOIPSession implements VOIPObserver {
         this.peerUID = peerUID;
         this.voipPort = VOIP_PORT;
         this.stunServer = STUN_SERVER;
+    }
+
+    //获取中转服务器IP地址
+    public String getRelayIP() {
+        return relayIP;
     }
 
     public void setObserver(VOIPSessionObserver ob) {
@@ -247,7 +253,9 @@ public class VOIPSession implements VOIPObserver {
                 if (this.localNatMap == null) {
                     this.localNatMap = new VOIPControl.NatPortMap();
                 }
-
+                if (this.relayIP == null) {
+                    this.relayIP = IMService.getInstance().getHostIP();
+                }
                 sendConnected();
                 state = VOIPSession.VOIP_CONNECTED;
 
@@ -285,6 +293,17 @@ public class VOIPSession implements VOIPObserver {
                 this.acceptTimer = null;
 
                 this.peerNatMap = ctl.natMap;
+
+                if (ctl.relayIP > 0) {
+                    try {
+                        this.relayIP = InetAddress.getByAddress(BytePacket.unpackInetAddress(ctl.relayIP)).getHostAddress();
+                    } catch (Exception e) {
+                        this.relayIP = IMService.getInstance().getHostIP();
+                    }
+                } else {
+                    IMService.getInstance().getHostIP();
+                }
+
                 state = VOIPSession.VOIP_CONNECTED;
 
                 observer.onConnected();
@@ -368,6 +387,13 @@ public class VOIPSession implements VOIPObserver {
         ctl.receiver = peerUID;
         ctl.cmd = VOIPControl.VOIP_COMMAND_CONNECTED;
         ctl.natMap = this.localNatMap;
+        try {
+            InetAddress[] addresses = InetAddress.getAllByName(this.relayIP);
+            ctl.relayIP = BytePacket.packInetAddress(addresses[0].getAddress());
+        } catch (Exception e) {
+            ctl.relayIP = 0;
+        }
+
         IMService.getInstance().sendVOIPControl(ctl);
     }
 

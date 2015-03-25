@@ -18,9 +18,12 @@ public class VOIPControl {
     public int cmd;
     public int dialCount;//只对VOIP_COMMAND_DIAL有意义
 
+
     public NatPortMap natMap; //VOIP_COMMAND_ACCEPT，VOIP_COMMAND_CONNECTED
     public static class NatPortMap {
         public int ip;
         public short port;
     }
+
+    public int relayIP;//VOIP_COMMAND_CONNECTED
 }

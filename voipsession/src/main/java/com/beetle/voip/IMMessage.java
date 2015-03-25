@@ -77,14 +77,25 @@ class Message {
                 BytePacket.writeInt32(ctl.dialCount, buf, pos);
                 pos += 4;
                 return Arrays.copyOf(buf, HEAD_SIZE + 24);
-            } else if (ctl.cmd == VOIPControl.VOIP_COMMAND_ACCEPT ||
-                    ctl.cmd == VOIPControl.VOIP_COMMAND_CONNECTED) {
+            } else if (ctl.cmd == VOIPControl.VOIP_COMMAND_ACCEPT) {
                 if (ctl.natMap != null) {
                     BytePacket.writeInt32(ctl.natMap.ip, buf, pos);
                     pos += 4;
                     BytePacket.writeInt16(ctl.natMap.port, buf, pos);
                     pos += 2;
-                    return Arrays.copyOf(buf, HEAD_SIZE+26);
+                    return Arrays.copyOf(buf, HEAD_SIZE + 26);
+                } else {
+                    return Arrays.copyOf(buf, HEAD_SIZE + 20);
+                }
+            } else if (ctl.cmd == VOIPControl.VOIP_COMMAND_CONNECTED) {
+                if (ctl.natMap != null) {
+                    BytePacket.writeInt32(ctl.natMap.ip, buf, pos);
+                    pos += 4;
+                    BytePacket.writeInt16(ctl.natMap.port, buf, pos);
+                    pos += 2;
+                    BytePacket.writeInt32(ctl.relayIP, buf, pos);
+                    pos += 4;
+                    return Arrays.copyOf(buf, HEAD_SIZE + 30);
                 } else {
                     return Arrays.copyOf(buf, HEAD_SIZE + 20);
                 }
@@ -115,14 +126,25 @@ class Message {
             pos += 4;
             if (ctl.cmd == VOIPControl.VOIP_COMMAND_DIAL) {
                 ctl.dialCount = BytePacket.readInt32(data, pos);
-            } else if (ctl.cmd == VOIPControl.VOIP_COMMAND_ACCEPT ||
-                    ctl.cmd == VOIPControl.VOIP_COMMAND_CONNECTED) {
+            } else if (ctl.cmd == VOIPControl.VOIP_COMMAND_ACCEPT) {
                 if (data.length >= HEAD_SIZE + 26) {
                     ctl.natMap = new VOIPControl.NatPortMap();
                     ctl.natMap.ip = BytePacket.readInt32(data, pos);
                     pos += 4;
                     ctl.natMap.port = BytePacket.readInt16(data, pos);
                     pos += 2;
+                }
+            } else if (ctl.cmd == VOIPControl.VOIP_COMMAND_CONNECTED) {
+                if (data.length >= HEAD_SIZE + 26) {
+                    ctl.natMap = new VOIPControl.NatPortMap();
+                    ctl.natMap.ip = BytePacket.readInt32(data, pos);
+                    pos += 4;
+                    ctl.natMap.port = BytePacket.readInt16(data, pos);
+                    pos += 2;
+                }
+                if (data.length >= HEAD_SIZE + 28) {
+                    ctl.relayIP = BytePacket.readInt32(data, pos);
+                    pos += 4;
                 }
             }
             this.body = ctl;
