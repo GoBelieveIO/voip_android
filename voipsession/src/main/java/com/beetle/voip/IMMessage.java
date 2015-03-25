@@ -83,22 +83,28 @@ class Message {
                     pos += 4;
                     BytePacket.writeInt16(ctl.natMap.port, buf, pos);
                     pos += 2;
-                    return Arrays.copyOf(buf, HEAD_SIZE + 26);
                 } else {
-                    return Arrays.copyOf(buf, HEAD_SIZE + 20);
+                    BytePacket.writeInt32(0, buf, pos);
+                    pos += 4;
+                    BytePacket.writeInt16((short)(0), buf, pos);
+                    pos += 2;
                 }
+                return Arrays.copyOf(buf, HEAD_SIZE + 26);
             } else if (ctl.cmd == VOIPControl.VOIP_COMMAND_CONNECTED) {
                 if (ctl.natMap != null) {
                     BytePacket.writeInt32(ctl.natMap.ip, buf, pos);
                     pos += 4;
                     BytePacket.writeInt16(ctl.natMap.port, buf, pos);
                     pos += 2;
-                    BytePacket.writeInt32(ctl.relayIP, buf, pos);
-                    pos += 4;
-                    return Arrays.copyOf(buf, HEAD_SIZE + 30);
                 } else {
-                    return Arrays.copyOf(buf, HEAD_SIZE + 20);
+                    BytePacket.writeInt32(0, buf, pos);
+                    pos += 4;
+                    BytePacket.writeInt16((short)(0), buf, pos);
+                    pos += 2;
                 }
+                BytePacket.writeInt32(ctl.relayIP, buf, pos);
+                pos += 4;
+                return Arrays.copyOf(buf, HEAD_SIZE + 30);
             } else {
                 return Arrays.copyOf(buf, HEAD_SIZE + 20);
             }

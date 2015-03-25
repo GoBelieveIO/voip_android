@@ -242,7 +242,7 @@ public class VOIPSession implements VOIPObserver {
     @Override
     public void onVOIPControl(VOIPControl ctl) {
         if (ctl.sender != peerUID) {
-            sendTalking();
+            sendTalking(ctl.sender);
             return;
         }
 
@@ -301,7 +301,7 @@ public class VOIPSession implements VOIPObserver {
                         this.relayIP = IMService.getInstance().getHostIP();
                     }
                 } else {
-                    IMService.getInstance().getHostIP();
+                    this.relayIP = IMService.getInstance().getHostIP();
                 }
 
                 state = VOIPSession.VOIP_CONNECTED;
@@ -397,8 +397,12 @@ public class VOIPSession implements VOIPObserver {
         IMService.getInstance().sendVOIPControl(ctl);
     }
 
-    private void sendTalking() {
-        sendControlCommand(VOIPControl.VOIP_COMMAND_TALKING);
+    private void sendTalking(long receiver) {
+        VOIPControl ctl = new VOIPControl();
+        ctl.sender = currentUID;
+        ctl.receiver = receiver;
+        ctl.cmd = VOIPControl.VOIP_COMMAND_TALKING;
+        IMService.getInstance().sendVOIPControl(ctl);
     }
 
     private void sendDialAccept() {
