@@ -3,6 +3,17 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 
+void writeInt16(int16_t v, void *p) {
+    v = htons(v);
+    memcpy(p, &v, 2);
+}
+
+int16_t readInt16(const void *p) {
+    int16_t v;
+    memcpy(&v, p, 2);
+    return ntohs(v);
+}
+
 void writeInt32(int32_t v, void *p) {
     v = htonl(v);
     memcpy(p, &v, 4);
@@ -13,7 +24,6 @@ int32_t readInt32(const void *p) {
     memcpy(&v, p, 4);
     return ntohl(v);
 }
-
 
 int64_t hton64(int64_t val )
 {

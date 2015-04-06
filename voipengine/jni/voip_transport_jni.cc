@@ -25,13 +25,18 @@
 
 #define UNUSED(x) (void)(x)
 
+//兼容没有消息头的旧版本协议
+#define COMPATIBLE
+
 #define VOIP_AUDIO 1
 #define VOIP_VIDEO 2
 
 #define VOIP_RTP 1
 #define VOIP_RTCP 2
 
-#define VOIP_PORT 20001
+#define VOIP_AUTH 1
+#define VOIP_AUTH_STATUS 2
+#define VOIP_DATA 3
 
 class VOIP;
 
@@ -85,6 +90,35 @@ public:
     }
 
 private:
+    void sendAuth() {
+        if (strlen(token) == 0) {
+            return;
+        }
+
+        int len = strlen(token);
+        char buff[1024] = {0};
+        
+        char *p = buff;
+        *p = (char)VOIP_AUTH;
+        p++;
+        
+        writeInt16(len, p);
+        p += 2;
+        memcpy(p, token, len);
+        p += len;
+
+        struct sockaddr_in addr;
+        bzero(&addr, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = inet_addr(hostIP);
+        addr.sin_port = htons(voipPort);
+
+        int r = sendto(this->udpFD, buff, len + 3, 0, (struct sockaddr*)&addr, sizeof(addr));
+        if (r == -1) {
+            LOG("send voip data error:%d", errno);
+        }
+    }
+
     int sendPacket(const void *data, int length, bool rtp) {
         if (this->udpFD == -1) {
             return 0;
@@ -94,9 +128,30 @@ private:
             return 0;
         }
 
-        char buff[64*1024];
 
+        bool isP2P = false;
+        if (strlen(peerIP) > 0 && peerPort > 0) {
+            isP2P = true;
+        }
+
+        if (isP2P && !isPeerConnected) {
+            unsigned long now = getNow();
+            if (now - beginTime > 2000) {
+                isP2P = false;
+            }
+        }
+        if (!isP2P && !this->isAuth) {
+            sendAuth();
+        }
+
+        char buff[64*1024];
         char *p = buff;
+
+
+        if (!isPeerNoHeader) {
+            *p = (char)VOIP_DATA;
+            p++;
+        }
 
         writeInt64(selfUID, p);
         p += 8;
@@ -112,19 +167,6 @@ private:
         memcpy(p, data, length);
         p += length;
 
-
-        bool isP2P = false;
-        if (strlen(peerIP) > 0 && peerPort > 0) {
-            isP2P = true;
-        }
-
-        if (isP2P && !isPeerConnected) {
-            unsigned long now = getNow();
-            if (now - beginTime > 2000) {
-                isP2P = false;
-            }
-        }
-
         struct sockaddr_in addr;
         bzero(&addr, sizeof(addr));
         addr.sin_family = AF_INET;
@@ -134,10 +176,18 @@ private:
             //LOG("send p2p voip data...");
         } else {
             addr.sin_addr.s_addr = inet_addr(hostIP);
-            addr.sin_port = htons(VOIP_PORT);
+            addr.sin_port = htons(voipPort);
             //LOG("send voip data...");
         }
-        int r = sendto(this->udpFD, buff, length + 18, 0, (struct sockaddr*)&addr, sizeof(addr));
+
+        int bufLen = 0;
+        if (isPeerNoHeader) {
+            bufLen = length + 18;
+        } else {
+            bufLen = length + 19;
+        }
+
+        int r = sendto(this->udpFD, buff, bufLen, 0, (struct sockaddr*)&addr, sizeof(addr));
         if (r == -1) {
             LOG("send voip data error:%d", errno);
             return 0;
@@ -146,12 +196,14 @@ private:
     }
     
 public:
-    VOIP(): _sendStream(NULL), _recvStream(NULL), 
-            j_voip(NULL), _is_active(false),
-            udpFD(-1), beginTime(0), isPeerConnected(false) {
+    VOIP(): j_voip(NULL), _sendStream(NULL), 
+            _recvStream(NULL), _is_active(false),
+            udpFD(-1), beginTime(0), isPeerConnected(false), 
+            isPeerNoHeader(false), isAuth(false) {
         loadConf();
-        peerIP[0] = '0';
+        peerIP[0] = 0;
         peerPort = 0;
+        token[0] = 0;
     }
 
     void start() {
@@ -212,25 +264,11 @@ public:
         return REGISTER_CALLBACK;
     }
 
-    void handleRead() {
-        char buf[64*1024];
-        struct sockaddr_in addr;
-        socklen_t len = sizeof(addr);
-        int n = recvfrom(this->udpFD, buf, 64*1024, 0, (struct sockaddr*)&addr, &len);
-        if (n <= 0) {
-            LOG("recv udp error:%d", errno);
-            return;
-        }
-
-        if (n <= 16) {
-            LOG("invalid voip data length");
-            return;
-        }
-
+    void handleVOIPData(char *buff, int len, struct sockaddr_in &addr) {
         int64_t sender, receiver;
         int packet_type;
         int type;
-        char *p = buf;
+        char *p = buff;
 
         sender = readInt64(p);
         p += 8;
@@ -260,10 +298,52 @@ public:
         //LOG("recv packet:%d type:%d", packet_type, n-18);
         WebRTC *rtc = WebRTC::sharedWebRTC();
         if (packet_type == VOIP_RTP) {
-            rtc->voe_network->ReceivedRTPPacket(_recvStream->VoiceChannel(), p, n-18);
+            rtc->voe_network->ReceivedRTPPacket(_recvStream->VoiceChannel(), p, len-18);
         } else if (packet_type == VOIP_RTCP) {
-            rtc->voe_network->ReceivedRTCPPacket(_recvStream->VoiceChannel(), p, n-18);
+            rtc->voe_network->ReceivedRTCPPacket(_recvStream->VoiceChannel(), p, len-18);
         }
+    }
+
+    void handleAuthStatus(char *buff, int len) {
+        if (len == 0) {
+            return;
+        }
+        int status = buff[0];
+        if (status == 0) {
+            this->isAuth = true;
+        }
+        LOG("voip tunnel auth status:%d", status);
+    }
+
+    void handleRead() {
+        char buf[64*1024];
+        struct sockaddr_in addr;
+        socklen_t len = sizeof(addr);
+        int n = recvfrom(this->udpFD, buf, 64*1024, 0, (struct sockaddr*)&addr, &len);
+        if (n <= 0) {
+            LOG("recv udp error:%d", errno);
+            return;
+        }
+
+        if (n <= 16) {
+            LOG("invalid voip data length");
+            return;
+        }
+        int cmd = buf[0] & 0x0f;
+        if (cmd == VOIP_AUTH_STATUS) {
+            handleAuthStatus(buf+1, n-1);
+        } else if (cmd == VOIP_DATA) {
+            handleVOIPData(buf+1, n-1, addr);
+        }
+#ifdef COMPATIBLE
+        if (buf[0] == 0) {
+            handleVOIPData(buf, n, addr);
+            if (!isPeerNoHeader) {
+                isPeerNoHeader = true;
+                LOG("voip data has't data from peer");
+            }
+        }
+#endif
     }
 
     void listenVOIP() {
@@ -273,7 +353,7 @@ public:
         bzero(&addr, sizeof(addr));
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port = htons(VOIP_PORT);
+        addr.sin_port = htons(voipPort);
 
         int one = 1; 
         setsockopt(udpFD, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
@@ -316,6 +396,21 @@ public:
     }
 
 public:
+    void setPeerAddr(const char *ip, int port) {
+        VOIP *voip = this;
+        strcpy(voip->peerIP, ip);
+        voip->peerPort = port;
+
+        bzero(&voip->peerAddr, sizeof(voip->peerAddr));
+        voip->peerAddr.sin_family = AF_INET;
+        voip->peerAddr.sin_addr.s_addr = inet_addr(voip->peerIP);
+        voip->peerAddr.sin_port = htons(voip->peerPort);
+    }
+
+public:
+    jobject j_voip;
+
+public:
     AVSendStream *_sendStream;
     AVReceiveStream *_recvStream;
 
@@ -324,27 +419,29 @@ public:
     int _recordDeviceIndex;
     bool _headphone;
 
+    char token[256];
     int64_t peerUID;
     int64_t selfUID;
 
     char hostIP[64];
+    int voipPort;
 
+private:
     char peerIP[64];
     int peerPort;
     struct sockaddr_in peerAddr;
- public:
-    jobject j_voip;
 
- private:
     bool _is_active;
     int udpFD;
     unsigned long beginTime;
     bool isPeerConnected;
+    bool isPeerNoHeader;
+    bool isAuth;
 };
 
 
-JOWW(void, VOIP_initNative)(JNIEnv* jni, jobject j_voip, jlong selfUID, jlong peerUID, jstring j_ip, jstring peerIP, jint peerPort, jboolean isHeadphone) {
-    LOG("voip init");
+JOWW(void, VOIPEngine_initNative)(JNIEnv* jni, jobject j_voip, jstring j_token, jlong selfUID, jlong peerUID, jstring j_ip, jint voipPort, jstring peerIP, jint peerPort, jboolean isHeadphone) {
+    LOG("voip engine init");
 
     VOIP *voip = new VOIP;
     voip->j_voip = jni->NewWeakGlobalRef(j_voip);
@@ -354,22 +451,23 @@ JOWW(void, VOIP_initNative)(JNIEnv* jni, jobject j_voip, jlong selfUID, jlong pe
     voip->selfUID = selfUID;
     voip->peerUID = peerUID;
 
+    const char *token = jni->GetStringUTFChars(j_token, NULL);
+    assert(token && strlen(token) && strlen(token) < 256);
+    strcpy(voip->token, token);
+
     const char *ip = jni->GetStringUTFChars(j_ip, NULL);
     assert(ip && strlen(ip) && strlen(ip) < 32);
     strcpy(voip->hostIP, ip);
+    voip->voipPort = voipPort;
+    
     ip = jni->GetStringUTFChars(peerIP, NULL);
     assert(ip && strlen(ip) && strlen(ip) < 32);
-    strcpy(voip->peerIP, ip);
-    voip->peerPort = peerPort;
 
-    bzero(&voip->peerAddr, sizeof(voip->peerAddr));
-    voip->peerAddr.sin_family = AF_INET;
-    voip->peerAddr.sin_addr.s_addr = inet_addr(voip->peerIP);
-    voip->peerAddr.sin_port = htons(voip->peerPort);
+    voip->setPeerAddr(ip, peerPort);
     LOG("voip dial:%s, headphone:%d", ip,  isHeadphone);
 }
 
-JOWW(void, VOIP_destroyNative)(JNIEnv* jni, jobject j_voip) {
+JOWW(void, VOIPEngine_destroyNative)(JNIEnv* jni, jobject j_voip) {
     VOIP *voip = GetNativeVOIP(jni, j_voip);
     if (!voip) {
         LOG("voip uninitialize");
@@ -379,7 +477,7 @@ JOWW(void, VOIP_destroyNative)(JNIEnv* jni, jobject j_voip) {
     SetNativeVOIP(jni, j_voip, NULL);
 }
 
-JOWW(void, VOIP_start)(JNIEnv* jni, jobject j_voip) {
+JOWW(void, VOIPEngine_start)(JNIEnv* jni, jobject j_voip) {
     VOIP *voip = GetNativeVOIP(jni, j_voip);
     if (!voip) {
         LOG("voip uninitialize");
@@ -389,7 +487,7 @@ JOWW(void, VOIP_start)(JNIEnv* jni, jobject j_voip) {
     LOG("voip start stream");
 }
 
-JOWW(void, VOIP_stop)(JNIEnv* jni, jobject j_voip) {
+JOWW(void, VOIPEngine_stop)(JNIEnv* jni, jobject j_voip) {
     VOIP *voip = GetNativeVOIP(jni, j_voip);
     if (!voip) {
         LOG("voip uninitialize");
