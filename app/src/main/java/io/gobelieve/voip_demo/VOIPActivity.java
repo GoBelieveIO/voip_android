@@ -9,6 +9,7 @@ import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -21,7 +22,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.beetle.VOIP;
+import com.beetle.VOIPEngine;
 import com.beetle.voip.VOIPSession;
 
 import com.beetle.voip.BytePacket;
@@ -44,6 +45,8 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
     private long peerUID;
     private String peerName;
 
+    private String token;
+
 
     private Button handUpButton;
     private ImageButton refuseButton;
@@ -51,7 +54,7 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
 
     private TextView durationTextView;
 
-    private VOIP voip;
+    private VOIPEngine voip;
     private int duration;
     private Timer durationTimer;
 
@@ -153,7 +156,11 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
             return;
         }
 
-
+        token = intent.getStringExtra("token");
+        if (TextUtils.isEmpty(token)) {
+            Log.e(TAG, "token is empty");
+            return;
+        }
 
         header.setImageResource(R.drawable.avatar_contact);
 
@@ -347,7 +354,7 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
         this.durationTimer.setTimer(uptimeMillis()+1000, 1000);
         this.durationTimer.resume();
 
-        this.voip = new VOIP();
+        this.voip = new VOIPEngine();
         long selfUID = currentUID;
         String relayIP = this.voipSession.getRelayIP();
         Log.i(TAG, "relay ip:" + relayIP);
@@ -363,7 +370,7 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
-        this.voip.initNative(selfUID, peerUID, relayIP, peerIP, peerPort, headphone);
+        this.voip.initNative(token, selfUID, peerUID, relayIP, VOIPSession.VOIP_PORT, peerIP, peerPort, headphone);
 
         this.voip.start();
     }

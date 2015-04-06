@@ -28,7 +28,7 @@ public class VOIPSession implements VOIPObserver {
     private static final String TAG = "voip";
 
     public static final String STUN_SERVER = "stun.counterpath.net";
-    public static final int VOIP_PORT = 20001;
+    public static final int VOIP_PORT = 20002;
 
 
     private int voipPort;

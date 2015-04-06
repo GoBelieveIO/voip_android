@@ -40,6 +40,7 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
 
     private long myUID;
     private long peerUID;
+    private String token;
 
     ProgressDialog dialog;
     AsyncTask mLoginTask;
@@ -56,6 +57,10 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
         String androidID = Settings.Secure.getString(this.getContentResolver(),
                 Settings.Secure.ANDROID_ID);
 
+        //app可以单独部署服务器，给予第三方应用更多的灵活性
+        //在开发阶段也可以配置成测试环境的地址 "sandbox.voipnode.gobelieve.io"
+        String sdkHost = "voipnode.gobelieve.io";
+        IMService.getInstance().setHost(sdkHost);
         IMService.getInstance().registerConnectivityChangeReceiver(getApplicationContext());
         IMService.getInstance().setDeviceID(androidID);
 
@@ -117,6 +122,7 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                     if (result != null && result.length() > 0) {
                         //设置用户id,进入MainActivity
                         String token = result;
+                        MainActivity.this.token = token;
                         IMService.getInstance().setToken(token);
                         IMService.getInstance().start();
 
@@ -125,6 +131,7 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                         intent.putExtra("peer_uid", peerUID);
                         intent.putExtra("peer_name", "测试");
                         intent.putExtra("current_uid", myUID);
+                        intent.putExtra("token", token);
                         intent.putExtra("is_caller", true);
                         startActivity(intent);
 
@@ -168,6 +175,7 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                     if (result != null && result.length() > 0) {
                         //设置用户id,进入MainActivity
                         String token = result;
+                        MainActivity.this.token = token;
                         IMService.getInstance().setToken(token);
                         IMService.getInstance().start();
                         IMService.getInstance().pushVOIPObserver(MainActivity.this);
@@ -192,7 +200,7 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
     }
 
     private String login(long uid) {
-        //调用app自身的登陆接口获取im服务必须的access token,之后可将token保存在本地供下次直接登录IM服务,此URL为新游提供的Demo授权接口
+        //调用app自身的登陆接口获取im服务必须的access token
         String URL = "http://demo.im.gobelieve.io";
         String uri = String.format("%s/auth/token", URL);
         try {
@@ -244,6 +252,7 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                 intent.putExtra("peer_uid", peerUID);
                 intent.putExtra("peer_name", "测试");
                 intent.putExtra("current_uid", myUID);
+                intent.putExtra("token", token);
                 intent.putExtra("is_caller", false);
                 startActivity(intent);
             }
