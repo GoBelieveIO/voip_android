@@ -270,6 +270,10 @@ public:
         int type;
         char *p = buff;
 
+        if (len <= 18) {
+            LOG("invalid voip data len:%d", len);
+            return;
+        }
         sender = readInt64(p);
         p += 8;
         receiver = readInt64(p);
@@ -325,10 +329,6 @@ public:
             return;
         }
 
-        if (n <= 16) {
-            LOG("invalid voip data length");
-            return;
-        }
         int cmd = buf[0] & 0x0f;
         if (cmd == VOIP_AUTH_STATUS) {
             handleAuthStatus(buf+1, n-1);
