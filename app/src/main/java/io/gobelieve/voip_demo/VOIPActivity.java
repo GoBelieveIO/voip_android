@@ -23,10 +23,10 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.beetle.VOIPEngine;
+import com.beetle.voip.VOIPService;
 import com.beetle.voip.VOIPSession;
 
 import com.beetle.voip.BytePacket;
-import com.beetle.voip.IMService;
 import com.beetle.voip.Timer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -169,7 +169,7 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
         voipSession.setObserver(this);
         voipSession.holePunch();
 
-        IMService.getInstance().pushVOIPObserver(this.voipSession);
+        VOIPService.getInstance().pushVOIPObserver(this.voipSession);
 
         if (isCaller) {
             handUpButton.setVisibility(View.VISIBLE);
@@ -299,7 +299,7 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
     }
 
     private void dismiss() {
-        IMService.getInstance().stop();
+        VOIPService.getInstance().stop();
         finish();
     }
 

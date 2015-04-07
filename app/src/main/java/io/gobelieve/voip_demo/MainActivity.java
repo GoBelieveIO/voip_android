@@ -6,7 +6,6 @@ import android.os.AsyncTask;
 import android.provider.Settings;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -14,7 +13,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.beetle.NativeWebRtcContextRegistry;
-import com.beetle.voip.IMService;
+import com.beetle.voip.VOIPService;
 import com.beetle.voip.VOIPControl;
 import com.beetle.voip.VOIPObserver;
 
@@ -60,9 +59,9 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
         //app可以单独部署服务器，给予第三方应用更多的灵活性
         //在开发阶段也可以配置成测试环境的地址 "sandbox.voipnode.gobelieve.io"
         String sdkHost = "voipnode.gobelieve.io";
-        IMService.getInstance().setHost(sdkHost);
-        IMService.getInstance().registerConnectivityChangeReceiver(getApplicationContext());
-        IMService.getInstance().setDeviceID(androidID);
+        VOIPService.getInstance().setHost(sdkHost);
+        VOIPService.getInstance().registerConnectivityChangeReceiver(getApplicationContext());
+        VOIPService.getInstance().setDeviceID(androidID);
 
 
         //初始化webrtc
@@ -123,8 +122,8 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                         //设置用户id,进入MainActivity
                         String token = result;
                         MainActivity.this.token = token;
-                        IMService.getInstance().setToken(token);
-                        IMService.getInstance().start();
+                        VOIPService.getInstance().setToken(token);
+                        VOIPService.getInstance().start();
 
                         Intent intent = new Intent(MainActivity.this, VOIPActivity.class);
                         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -176,9 +175,9 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                         //设置用户id,进入MainActivity
                         String token = result;
                         MainActivity.this.token = token;
-                        IMService.getInstance().setToken(token);
-                        IMService.getInstance().start();
-                        IMService.getInstance().pushVOIPObserver(MainActivity.this);
+                        VOIPService.getInstance().setToken(token);
+                        VOIPService.getInstance().start();
+                        VOIPService.getInstance().pushVOIPObserver(MainActivity.this);
 
                         ProgressDialog dialog = ProgressDialog.show(MainActivity.this, null, "等待中...");
 

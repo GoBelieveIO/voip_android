@@ -24,7 +24,7 @@ import static android.os.SystemClock.uptimeMillis;
 /**
  * Created by houxh on 14-7-21.
  */
-public class IMService {
+public class VOIPService {
 
     private final String HOST = "voipnode.gobelieve.io";
     private final int PORT = 20000;
@@ -60,22 +60,22 @@ public class IMService {
     private String deviceID;
 
 
-    ArrayList<IMServiceObserver> observers = new ArrayList<IMServiceObserver>();
+    ArrayList<VOIPServiceObserver> observers = new ArrayList<VOIPServiceObserver>();
     ArrayList<VOIPObserver> voipObservers = new ArrayList<VOIPObserver>();
 
     private byte[] data;
 
-    private static IMService im = new IMService();
+    private static VOIPService im = new VOIPService();
 
-    public static IMService getInstance() {
+    public static VOIPService getInstance() {
         return im;
     }
 
-    public IMService() {
+    public VOIPService() {
         connectTimer = new Timer() {
             @Override
             protected void fire() {
-                IMService.this.connect();
+                VOIPService.this.connect();
             }
         };
 
@@ -85,11 +85,11 @@ public class IMService {
                 int n = now();
                 if (pingTimestamp > 0 && n - pingTimestamp > 60) {
                     Log.i(TAG, "ping timeout");
-                    IMService.this.connectState = ConnectState.STATE_UNCONNECTED;
-                    IMService.this.publishConnectState();
-                    IMService.this.close();
+                    VOIPService.this.connectState = ConnectState.STATE_UNCONNECTED;
+                    VOIPService.this.publishConnectState();
+                    VOIPService.this.close();
                 } else {
-                    IMService.this.sendPing();
+                    VOIPService.this.sendPing();
                 }
             }
         };
@@ -101,14 +101,14 @@ public class IMService {
             public void onReceive (Context context, Intent intent) {
                 if (isOnNet(context)) {
                     Log.i(TAG, "connectivity status:on");
-                    if (!IMService.this.stopped && !IMService.this.isBackground) {
+                    if (!VOIPService.this.stopped && !VOIPService.this.isBackground) {
                         Log.i(TAG, "reconnect");
-                        IMService.this.resume();
+                        VOIPService.this.resume();
                     }
                 } else {
                     Log.i(TAG, "connectivity status:on");
-                    if (!IMService.this.stopped) {
-                        IMService.this.suspend();
+                    if (!VOIPService.this.stopped) {
+                        VOIPService.this.suspend();
                     }
                 }
             }
@@ -155,14 +155,14 @@ public class IMService {
         this.deviceID = deviceID;
     }
 
-    public void addObserver(IMServiceObserver ob) {
+    public void addObserver(VOIPServiceObserver ob) {
         if (observers.contains(ob)) {
             return;
         }
         observers.add(ob);
     }
 
-    public void removeObserver(IMServiceObserver ob) {
+    public void removeObserver(VOIPServiceObserver ob) {
         observers.remove(ob);
     }
 
@@ -288,7 +288,7 @@ public class IMService {
         new AsyncTask<Void, Integer, String>() {
             @Override
             protected String doInBackground(Void... urls) {
-                return lookupHost(IMService.this.host);
+                return lookupHost(VOIPService.this.host);
             }
 
             private String lookupHost(String host) {
@@ -305,8 +305,8 @@ public class IMService {
             @Override
             protected void onPostExecute(String result) {
                 if (result.length() > 0) {
-                    IMService.this.hostIP = result;
-                    IMService.this.timestamp = now();
+                    VOIPService.this.hostIP = result;
+                    VOIPService.this.timestamp = now();
                 }
             }
         }.execute();
@@ -323,7 +323,7 @@ public class IMService {
 
         if (hostIP == null || hostIP.length() == 0) {
             refreshHost();
-            IMService.this.connectFailCount++;
+            VOIPService.this.connectFailCount++;
             Log.i(TAG, "host ip is't resolved");
 
             long t;
@@ -341,7 +341,7 @@ public class IMService {
         }
 
         this.connectState = ConnectState.STATE_CONNECTING;
-        IMService.this.publishConnectState();
+        VOIPService.this.publishConnectState();
         this.tcp = new AsyncTCP();
         Log.i(TAG, "new tcp...");
 
@@ -350,17 +350,17 @@ public class IMService {
             public void onConnect(Object tcp, int status) {
                 if (status != 0) {
                     Log.i(TAG, "connect err:" + status);
-                    IMService.this.connectFailCount++;
-                    IMService.this.connectState = ConnectState.STATE_CONNECTFAIL;
-                    IMService.this.publishConnectState();
-                    IMService.this.close();
+                    VOIPService.this.connectFailCount++;
+                    VOIPService.this.connectState = ConnectState.STATE_CONNECTFAIL;
+                    VOIPService.this.publishConnectState();
+                    VOIPService.this.close();
                 } else {
                     Log.i(TAG, "tcp connected");
-                    IMService.this.connectFailCount = 0;
-                    IMService.this.connectState = ConnectState.STATE_CONNECTED;
-                    IMService.this.publishConnectState();
-                    IMService.this.sendAuth();
-                    IMService.this.tcp.startRead();
+                    VOIPService.this.connectFailCount = 0;
+                    VOIPService.this.connectState = ConnectState.STATE_CONNECTED;
+                    VOIPService.this.publishConnectState();
+                    VOIPService.this.sendAuth();
+                    VOIPService.this.tcp.startRead();
                 }
             }
         });
@@ -369,15 +369,15 @@ public class IMService {
             @Override
             public void onRead(Object tcp, byte[] data) {
                 if (data.length == 0) {
-                    IMService.this.connectState = ConnectState.STATE_UNCONNECTED;
-                    IMService.this.publishConnectState();
-                    IMService.this.handleClose();
+                    VOIPService.this.connectState = ConnectState.STATE_UNCONNECTED;
+                    VOIPService.this.publishConnectState();
+                    VOIPService.this.handleClose();
                 } else {
-                    boolean b = IMService.this.handleData(data);
+                    boolean b = VOIPService.this.handleData(data);
                     if (!b) {
-                        IMService.this.connectState = ConnectState.STATE_UNCONNECTED;
-                        IMService.this.publishConnectState();
-                        IMService.this.handleClose();
+                        VOIPService.this.connectState = ConnectState.STATE_UNCONNECTED;
+                        VOIPService.this.publishConnectState();
+                        VOIPService.this.handleClose();
                     }
                 }
             }
@@ -387,8 +387,8 @@ public class IMService {
         Log.i(TAG, "tcp connect:" + r);
         if (!r) {
             this.tcp = null;
-            IMService.this.connectFailCount++;
-            IMService.this.connectState = ConnectState.STATE_CONNECTFAIL;
+            VOIPService.this.connectFailCount++;
+            VOIPService.this.connectState = ConnectState.STATE_CONNECTFAIL;
             publishConnectState();
             Log.d(TAG, "start connect timer");
 
@@ -539,7 +539,7 @@ public class IMService {
 
     private void publishConnectState() {
         for (int i = 0; i < observers.size(); i++ ) {
-            IMServiceObserver ob = observers.get(i);
+            VOIPServiceObserver ob = observers.get(i);
             ob.onConnectState(connectState);
         }
     }

@@ -254,7 +254,7 @@ public class VOIPSession implements VOIPObserver {
                     this.localNatMap = new VOIPControl.NatPortMap();
                 }
                 if (this.relayIP == null) {
-                    this.relayIP = IMService.getInstance().getHostIP();
+                    this.relayIP = VOIPService.getInstance().getHostIP();
                 }
                 sendConnected();
                 state = VOIPSession.VOIP_CONNECTED;
@@ -298,10 +298,10 @@ public class VOIPSession implements VOIPObserver {
                     try {
                         this.relayIP = InetAddress.getByAddress(BytePacket.unpackInetAddress(ctl.relayIP)).getHostAddress();
                     } catch (Exception e) {
-                        this.relayIP = IMService.getInstance().getHostIP();
+                        this.relayIP = VOIPService.getInstance().getHostIP();
                     }
                 } else {
-                    this.relayIP = IMService.getInstance().getHostIP();
+                    this.relayIP = VOIPService.getInstance().getHostIP();
                 }
 
                 state = VOIPSession.VOIP_CONNECTED;
@@ -349,7 +349,7 @@ public class VOIPSession implements VOIPObserver {
         ctl.sender = currentUID;
         ctl.receiver = peerUID;
         ctl.cmd = cmd;
-        IMService.getInstance().sendVOIPControl(ctl);
+        VOIPService.getInstance().sendVOIPControl(ctl);
     }
 
     private void sendDial() {
@@ -360,7 +360,7 @@ public class VOIPSession implements VOIPObserver {
         ctl.dialCount = this.dialCount + 1;
 
         Log.i(TAG, "dial......");
-        boolean r = IMService.getInstance().sendVOIPControl(ctl);
+        boolean r = VOIPService.getInstance().sendVOIPControl(ctl);
         if (r) {
             this.dialCount = this.dialCount + 1;
         } else {
@@ -394,7 +394,7 @@ public class VOIPSession implements VOIPObserver {
             ctl.relayIP = 0;
         }
 
-        IMService.getInstance().sendVOIPControl(ctl);
+        VOIPService.getInstance().sendVOIPControl(ctl);
     }
 
     private void sendTalking(long receiver) {
@@ -402,7 +402,7 @@ public class VOIPSession implements VOIPObserver {
         ctl.sender = currentUID;
         ctl.receiver = receiver;
         ctl.cmd = VOIPControl.VOIP_COMMAND_TALKING;
-        IMService.getInstance().sendVOIPControl(ctl);
+        VOIPService.getInstance().sendVOIPControl(ctl);
     }
 
     private void sendDialAccept() {
@@ -411,7 +411,7 @@ public class VOIPSession implements VOIPObserver {
         ctl.receiver = peerUID;
         ctl.cmd = VOIPControl.VOIP_COMMAND_ACCEPT;
         ctl.natMap = this.localNatMap;
-        IMService.getInstance().sendVOIPControl(ctl);
+        VOIPService.getInstance().sendVOIPControl(ctl);
 
         long now = getNow();
         if (now - this.acceptTimestamp >= 10) {
