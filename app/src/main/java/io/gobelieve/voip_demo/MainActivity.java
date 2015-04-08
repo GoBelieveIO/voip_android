@@ -200,7 +200,8 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
 
     private String login(long uid) {
         //调用app自身的登陆接口获取im服务必须的access token
-        String URL = "http://demo.im.gobelieve.io";
+        //sandbox地址："http://sandbox.demo.gobelieve.io"
+        String URL = "http://demo.gobelieve.io";
         String uri = String.format("%s/auth/token", URL);
         try {
             HttpClient getClient = new DefaultHttpClient();
