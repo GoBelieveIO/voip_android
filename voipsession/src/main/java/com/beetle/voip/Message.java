@@ -28,6 +28,10 @@ class AuthenticationToken {
     public String deviceID;
 }
 
+class AuthenticationStatus {
+    public int status;
+    public int ip;
+}
 
 class Message {
 
@@ -119,8 +123,11 @@ class Message {
         cmd = data[pos];
         pos += 4;
         if (cmd == Command.MSG_AUTH_STATUS) {
-            int status = BytePacket.readInt32(data, pos);
-            this.body = new Integer(status);
+            AuthenticationStatus status = new AuthenticationStatus();
+            status.status = BytePacket.readInt32(data, pos);
+            pos += 4;
+            status.ip = BytePacket.readInt32(data, pos);
+            this.body = status;
             return true;
         } else if (cmd == Command.MSG_VOIP_CONTROL) {
             VOIPControl ctl = new VOIPControl();

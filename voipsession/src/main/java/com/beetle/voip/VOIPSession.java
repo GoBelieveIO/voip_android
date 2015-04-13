@@ -254,7 +254,7 @@ public class VOIPSession implements VOIPObserver {
                     this.localNatMap = new VOIPControl.NatPortMap();
                 }
                 if (this.relayIP == null) {
-                    this.relayIP = VOIPService.getInstance().getHostIP();
+                    this.relayIP = VOIPService.getInstance().getRelayIP();
                 }
                 sendConnected();
                 state = VOIPSession.VOIP_CONNECTED;
@@ -298,10 +298,10 @@ public class VOIPSession implements VOIPObserver {
                     try {
                         this.relayIP = InetAddress.getByAddress(BytePacket.unpackInetAddress(ctl.relayIP)).getHostAddress();
                     } catch (Exception e) {
-                        this.relayIP = VOIPService.getInstance().getHostIP();
+                        this.relayIP = VOIPService.getInstance().getRelayIP();
                     }
                 } else {
-                    this.relayIP = VOIPService.getInstance().getHostIP();
+                    this.relayIP = VOIPService.getInstance().getRelayIP();
                 }
 
                 state = VOIPSession.VOIP_CONNECTED;

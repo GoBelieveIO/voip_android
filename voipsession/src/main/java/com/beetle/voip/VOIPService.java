@@ -51,6 +51,7 @@ public class VOIPService {
     private int seq = 0;
     private ConnectState connectState = ConnectState.STATE_UNCONNECTED;
 
+    private String relayIP;
     private String hostIP;
     private int timestamp;
 
@@ -147,8 +148,8 @@ public class VOIPService {
         this.token = token;
     }
 
-    public String getHostIP() {
-        return this.hostIP;
+    public String getRelayIP() {
+        return this.relayIP;
     }
 
     public void setDeviceID(String deviceID) {
@@ -177,7 +178,7 @@ public class VOIPService {
         voipObservers.remove(ob);
     }
 
-    public void enterBackground() {
+    private void enterBackground() {
         Log.i(TAG, "im service enter background");
         this.isBackground = true;
         if (!this.stopped) {
@@ -185,7 +186,7 @@ public class VOIPService {
         }
     }
 
-    public void enterForeground() {
+    private void enterForeground() {
         Log.i(TAG, "im service enter foreground");
         this.isBackground = false;
         if (!this.stopped && this.reachable) {
@@ -403,9 +404,16 @@ public class VOIPService {
     }
 
     private void handleAuthStatus(Message msg) {
-        Integer status = (Integer)msg.body;
-        Log.d(TAG, "auth status:" + status);
-        if (status != 0) {
+        AuthenticationStatus status = (AuthenticationStatus)msg.body;
+        try {
+            InetAddress addr = InetAddress.getByAddress(BytePacket.unpackInetAddress(status.ip));
+            this.relayIP = addr.getHostAddress();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            this.relayIP = this.hostIP;
+        }
+        Log.d(TAG, "auth status:" + status.status + " relayip:" + this.relayIP);
+        if (status.status != 0) {
             //失效的accesstoken,2s后重新连接
             this.connectFailCount = 2;
             this.connectState = ConnectState.STATE_UNCONNECTED;
@@ -504,11 +512,6 @@ public class VOIPService {
         msg.body = auth;
 
         sendMessage(msg);
-
-//        Message msg = new Message();
-//        msg.cmd = Command.MSG_AUTH;
-//        msg.body = new Long(this.uid);
-//        sendMessage(msg);
     }
 
     private void sendPing() {
