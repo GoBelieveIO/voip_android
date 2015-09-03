@@ -1,17 +1,8 @@
 #ifndef CHANNEL_TRANSPORT_H
 #define CHANNEL_TRANSPORT_H
 #include "AVTransport.h"
-#include <android/log.h>
-#define DEBUG 1
-#if DEBUG
-#define  LOG(fmt, ...)  __android_log_print(ANDROID_LOG_INFO,"beetle",\
-                                            "line:%d "fmt,  __LINE__, \
-                                              ##__VA_ARGS__)
-#else
-#define  LOG(...)  do {} while (0)
-#endif
 
-class VoiceChannelTransport:webrtc::Transport{
+class VoiceChannelTransport:public webrtc::Transport{
 public:
     VoiceChannelTransport(webrtc::VoENetwork* voe_network, int channel,
                           VoiceTransport *transport, bool STOR): channel_(channel),
@@ -31,10 +22,10 @@ public:
     }
     
 public:
-    virtual int SendPacket(int channel, const void *data, int len) {
+    virtual int SendPacket(int channel, const void *data, size_t len) {
       return transport_->sendRTPPacketA(data, len);
     }
-    virtual int SendRTCPPacket(int channel, const void *data, int len){
+    virtual int SendRTCPPacket(int channel, const void *data, size_t len){
       return transport_->sendRTCPPacketA(data, len, STOR_);
     }
 
@@ -45,7 +36,9 @@ private:
     bool STOR_;
 };
 
-class VideoChannelTransport:webrtc::Transport{
+#if 0
+
+class VideoChannelTransport:public webrtc::Transport{
 public:
     VideoChannelTransport(webrtc::ViENetwork* vie_network, int channel,
                           VideoTransport *transport, bool STOR): channel_(channel),
@@ -64,11 +57,11 @@ public:
     }
     
 public:
-    virtual int SendPacket(int channel, const void *data, int len){
+    virtual int SendPacket(int channel, const void *data, size_t len){
       return transport_->sendRTPPacketV(data, len);
     }
 
-    virtual int SendRTCPPacket(int channel, const void *data, int len){
+    virtual int SendRTCPPacket(int channel, const void *data, size_t len){
       return transport_->sendRTCPPacketV(data, len, STOR_);
     }
 
@@ -78,8 +71,5 @@ private:
     VideoTransport *transport_;
     bool STOR_;
 };
-
-
-
-
+#endif
 #endif

@@ -10,9 +10,14 @@
 
 #include <jni.h>
 #include <assert.h>
-#include "webrtc/video_engine/include/vie_base.h"
+//#include "webrtc/video_engine/include/vie_base.h"
+#include <stdint.h>
+#include "webrtc/modules/video_capture/video_capture_internal.h"
+#include "webrtc/modules/video_render/video_render_internal.h"
+#include "webrtc/modules/utility/interface/jvm_android.h"
 #include "webrtc/voice_engine/include/voe_base.h"
-#include "voip.h"
+#include "jni_helpers.h"
+#include "classreferenceholder.h"
 
 static JavaVM* g_vm = NULL;
 
@@ -21,8 +26,19 @@ JavaVM* getJavaVM() {
 }
 
 extern "C" jint JNIEXPORT JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
+    LOG("on load...\n");
     g_vm = vm;
-    return JNI_VERSION_1_4;
+
+    jint ret = webrtc_jni::InitGlobalJniVariables(vm);
+    if (ret < 0)
+        return -1;
+
+    webrtc_jni::LoadGlobalClassReferenceHolder();
+    return ret;
+}
+
+extern "C" void JNIEXPORT JNICALL JNI_OnUnLoad(JavaVM *jvm, void *reserved) {
+    webrtc_jni::FreeGlobalClassReferenceHolder();
 }
 
 
@@ -30,11 +46,19 @@ JOWW(void, NativeWebRtcContextRegistry_register)(
     JNIEnv* jni,
     jclass,
     jobject context) {
-    webrtc::VoiceEngine::SetAndroidObjects(g_vm, jni, context);
+    LOG("webrtc register");
+    //webrtc::JVM::Initialize(g_vm, context);
+    webrtc::SetCaptureAndroidVM(g_vm, context);
+    //webrtc::SetRenderAndroidVM(g_vm);
+    webrtc::VoiceEngine::SetAndroidObjects(g_vm, context);
 }
 
 JOWW(void, NativeWebRtcContextRegistry_unRegister)(
     JNIEnv* jni,
     jclass) {
-    webrtc::VoiceEngine::SetAndroidObjects(NULL, NULL, NULL);
+    LOG("webrtc unregister");
+    //webrtc::JVM::Uninitialize();
+    //webrtc::SetCaptureAndroidVM(NULL, NULL);
+    //webrtc::SetRenderAndroidVM(NULL);
+    webrtc::VoiceEngine::SetAndroidObjects(NULL, NULL);
 }

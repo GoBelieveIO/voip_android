@@ -1,6 +1,6 @@
 #ifndef VOIP_WEBRTC_H
 #define VOIP_WEBRTC_H
-
+#if 0
 #include "webrtc/video_engine/include/vie_capture.h"
 #include "webrtc/video_engine/include/vie_base.h"
 #include "webrtc/video_engine/include/vie_codec.h"
@@ -12,6 +12,7 @@
 #include "webrtc/video_engine/vie_defines.h"
 #include "webrtc/video_engine/include/vie_errors.h"
 #include "webrtc/video_engine/include/vie_render.h"
+#endif
 
 #include "webrtc/voice_engine/include/voe_network.h"
 #include "webrtc/voice_engine/include/voe_base.h"
@@ -31,6 +32,24 @@
 #include "webrtc/modules/video_capture/include/video_capture_factory.h"
 #include "webrtc/system_wrappers/interface/tick_util.h"
 
+
+namespace webrtc {
+    class VideoEngine;
+    class ViEBase;
+    class ViECapture;
+    class ViERender;
+    class ViERTP_RTCP;
+    class ViECodec;
+    class ViENetwork;
+    class ViEImageProcess;
+    class ViEEncryption;
+    class VoiceEngine;
+    class VoEBase;
+    class VoECodec;
+    class VoEHardware;
+    class VoENetwork;
+    class VoEAudioProcessing;
+}
 
 
 class WebRTC {

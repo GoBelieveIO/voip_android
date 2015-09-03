@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2013 The WebRTC project authors. All Rights Reserved.
+ *  Copyright (c) 2015 The WebRTC project authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
@@ -10,188 +10,273 @@
 
 package org.webrtc.voiceengine;
 
+import java.lang.System;
 import java.nio.ByteBuffer;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.TimeUnit;
 
 import android.content.Context;
 import android.media.AudioFormat;
-import android.media.AudioManager;
+import android.media.audiofx.AcousticEchoCanceler;
+import android.media.audiofx.AudioEffect;
+import android.media.audiofx.AudioEffect.Descriptor;
 import android.media.AudioRecord;
 import android.media.MediaRecorder.AudioSource;
+import android.os.Build;
+import android.os.Process;
+import android.os.SystemClock;
 import android.util.Log;
 
-class WebRtcAudioRecord {
-    private AudioRecord _audioRecord = null;
+class  WebRtcAudioRecord {
+  private static final boolean DEBUG = false;
 
-    private Context _context;
+  private static final String TAG = "WebRtcAudioRecord";
 
-    private ByteBuffer _recBuffer;
-    private byte[] _tempBufRec;
+  // Default audio data format is PCM 16 bit per sample.
+  // Guaranteed to be supported by all devices.
+  private static final int BITS_PER_SAMPLE = 16;
 
-    private final ReentrantLock _recLock = new ReentrantLock();
+  // Requested size of each recorded buffer provided to the client.
+  private static final int CALLBACK_BUFFER_SIZE_MS = 10;
 
-    private boolean _doRecInit = true;
-    private boolean _isRecording = false;
+  // Average number of callbacks per second.
+  private static final int BUFFERS_PER_SECOND = 1000 / CALLBACK_BUFFER_SIZE_MS;
 
-    private int _bufferedRecSamples = 0;
+  private final long nativeAudioRecord;
+  private final Context context;
 
-    WebRtcAudioRecord() {
+  private ByteBuffer byteBuffer;
+
+  private AudioRecord audioRecord = null;
+  private AudioRecordThread audioThread = null;
+
+  private AcousticEchoCanceler aec = null;
+  private boolean useBuiltInAEC = false;
+
+  /**
+   * Audio thread which keeps calling ByteBuffer.read() waiting for audio
+   * to be recorded. Feeds recorded data to the native counterpart as a
+   * periodic sequence of callbacks using DataIsRecorded().
+   * This thread uses a Process.THREAD_PRIORITY_URGENT_AUDIO priority.
+   */
+  private class AudioRecordThread extends Thread {
+    private volatile boolean keepAlive = true;
+
+    public AudioRecordThread(String name) {
+      super(name);
+    }
+
+    @Override
+    public void run() {
+      Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
+      Logd("AudioRecordThread" + WebRtcAudioUtils.getThreadInfo());
+      assertTrue(audioRecord.getRecordingState()
+          == AudioRecord.RECORDSTATE_RECORDING);
+
+      long lastTime = System.nanoTime();
+      while (keepAlive) {
+        int bytesRead = audioRecord.read(byteBuffer, byteBuffer.capacity());
+        if (bytesRead == byteBuffer.capacity()) {
+          nativeDataIsRecorded(bytesRead, nativeAudioRecord);
+        } else {
+          Loge("AudioRecord.read failed: " + bytesRead);
+          if (bytesRead == AudioRecord.ERROR_INVALID_OPERATION) {
+            keepAlive = false;
+          }
+        }
+        if (DEBUG) {
+          long nowTime = System.nanoTime();
+          long durationInMs =
+              TimeUnit.NANOSECONDS.toMillis((nowTime - lastTime));
+          lastTime = nowTime;
+          Logd("bytesRead[" + durationInMs + "] " + bytesRead);
+        }
+      }
+
+      try {
+        audioRecord.stop();
+      } catch (IllegalStateException e) {
+        Loge("AudioRecord.stop failed: " + e.getMessage());
+      }
+    }
+
+    public void joinThread() {
+      keepAlive = false;
+      while (isAlive()) {
         try {
-            _recBuffer = ByteBuffer.allocateDirect(2 * 480); // Max 10 ms @ 48
-                                                             // kHz
-        } catch (Exception e) {
-            DoLog(e.getMessage());
+          join();
+        } catch (InterruptedException e) {
+          // Ignore.
         }
-
-        _tempBufRec = new byte[2 * 480];
+      }
     }
+  }
 
-    @SuppressWarnings("unused")
-    private int InitRecording(int audioSource, int sampleRate) {
-        audioSource = AudioSource.VOICE_COMMUNICATION;
-        // get the minimum buffer size that can be used
-        int minRecBufSize = AudioRecord.getMinBufferSize(
-            sampleRate,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT);
-
-        // DoLog("min rec buf size is " + minRecBufSize);
-
-        // double size to be more safe
-        int recBufSize = minRecBufSize * 2;
-        // On average half of the samples have been recorded/buffered and the
-        // recording interval is 1/100s.
-        _bufferedRecSamples = sampleRate / 200;
-        // DoLog("rough rec delay set to " + _bufferedRecSamples);
-
-        // release the object
-        if (_audioRecord != null) {
-            _audioRecord.release();
-            _audioRecord = null;
-        }
-
-        try {
-            _audioRecord = new AudioRecord(
-                            audioSource,
-                            sampleRate,
-                            AudioFormat.CHANNEL_IN_MONO,
-                            AudioFormat.ENCODING_PCM_16BIT,
-                            recBufSize);
-
-        } catch (Exception e) {
-            DoLog(e.getMessage());
-            return -1;
-        }
-
-        // check that the audioRecord is ready to be used
-        if (_audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
-            // DoLog("rec not initialized " + sampleRate);
-            return -1;
-        }
-
-        // DoLog("rec sample rate set to " + sampleRate);
-
-        return _bufferedRecSamples;
+  WebRtcAudioRecord(Context context, long nativeAudioRecord) {
+    Logd("ctor" + WebRtcAudioUtils.getThreadInfo());
+    this.context = context;
+    this.nativeAudioRecord = nativeAudioRecord;
+    if (DEBUG) {
+      WebRtcAudioUtils.logDeviceInfo(TAG);
     }
+  }
 
-    @SuppressWarnings("unused")
-    private int StartRecording() {
-        // start recording
-        try {
-            _audioRecord.startRecording();
-
-        } catch (IllegalStateException e) {
-            e.printStackTrace();
-            return -1;
-        }
-
-        _isRecording = true;
-        return 0;
+  private boolean EnableBuiltInAEC(boolean enable) {
+    Logd("EnableBuiltInAEC(" + enable + ')');
+    assertTrue(WebRtcAudioUtils.isAcousticEchoCancelerApproved());
+    // Store the AEC state.
+    useBuiltInAEC = enable;
+    // Set AEC state if AEC has already been created.
+    if (aec != null) {
+      int ret = aec.setEnabled(enable);
+      if (ret != AudioEffect.SUCCESS) {
+        Loge("AcousticEchoCanceler.setEnabled failed");
+        return false;
+      }
+      Logd("AcousticEchoCanceler.getEnabled: " + aec.getEnabled());
     }
+    return true;
+  }
 
-    @SuppressWarnings("unused")
-    private int StopRecording() {
-        _recLock.lock();
-        try {
-            // only stop if we are recording
-            if (_audioRecord.getRecordingState() ==
-              AudioRecord.RECORDSTATE_RECORDING) {
-                // stop recording
-                try {
-                    _audioRecord.stop();
-                } catch (IllegalStateException e) {
-                    e.printStackTrace();
-                    return -1;
-                }
-            }
-
-            // release the object
-            _audioRecord.release();
-            _audioRecord = null;
-
-        } finally {
-            // Ensure we always unlock, both for success, exception or error
-            // return.
-            _doRecInit = true;
-            _recLock.unlock();
-        }
-
-        _isRecording = false;
-        return 0;
+  private int InitRecording(int sampleRate, int channels) {
+    Logd("InitRecording(sampleRate=" + sampleRate + ", channels=" +
+        channels + ")");
+    if (!WebRtcAudioUtils.hasPermission(
+        context, android.Manifest.permission.RECORD_AUDIO)) {
+      Loge("RECORD_AUDIO permission is missing");
+      return -1;
     }
+    final int bytesPerFrame = channels * (BITS_PER_SAMPLE / 8);
+    final int framesPerBuffer = sampleRate / BUFFERS_PER_SECOND;
+    byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * framesPerBuffer);
+    Logd("byteBuffer.capacity: " + byteBuffer.capacity());
+    // Rather than passing the ByteBuffer with every callback (requiring
+    // the potentially expensive GetDirectBufferAddress) we simply have the
+    // the native class cache the address to the memory once.
+    nativeCacheDirectBufferAddress(byteBuffer, nativeAudioRecord);
 
-    @SuppressWarnings("unused")
-    private int RecordAudio(int lengthInBytes) {
-        _recLock.lock();
+    // Get the minimum buffer size required for the successful creation of
+    // an AudioRecord object, in byte units.
+    // Note that this size doesn't guarantee a smooth recording under load.
+    // TODO(henrika): Do we need to make this larger to avoid underruns?
+    int minBufferSize = AudioRecord.getMinBufferSize(
+          sampleRate,
+          AudioFormat.CHANNEL_IN_MONO,
+          AudioFormat.ENCODING_PCM_16BIT);
+    Logd("AudioRecord.getMinBufferSize: " + minBufferSize);
 
-        try {
-            if (_audioRecord == null) {
-                return -2; // We have probably closed down while waiting for rec
-                           // lock
-            }
-
-            // Set priority, only do once
-            if (_doRecInit == true) {
-                try {
-                    android.os.Process.setThreadPriority(
-                        android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
-                } catch (Exception e) {
-                    DoLog("Set rec thread priority failed: " + e.getMessage());
-                }
-                _doRecInit = false;
-            }
-
-            int readBytes = 0;
-            _recBuffer.rewind(); // Reset the position to start of buffer
-            readBytes = _audioRecord.read(_tempBufRec, 0, lengthInBytes);
-            // DoLog("read " + readBytes + "from SC");
-            _recBuffer.put(_tempBufRec);
-
-            if (readBytes != lengthInBytes) {
-                // DoLog("Could not read all data from sc (read = " + readBytes
-                // + ", length = " + lengthInBytes + ")");
-                return -1;
-            }
-
-        } catch (Exception e) {
-            DoLogErr("RecordAudio try failed: " + e.getMessage());
-
-        } finally {
-            // Ensure we always unlock, both for success, exception or error
-            // return.
-            _recLock.unlock();
-        }
-
-        return _bufferedRecSamples;
+    if (aec != null) {
+      aec.release();
+      aec = null;
     }
+    assertTrue(audioRecord == null);
 
-    final String logTag = "WebRTC AD java";
+    int bufferSizeInBytes = Math.max(byteBuffer.capacity(), minBufferSize);
+    Logd("bufferSizeInBytes: " + bufferSizeInBytes);
+    try {
+      audioRecord = new AudioRecord(AudioSource.VOICE_COMMUNICATION,
+                                    sampleRate,
+                                    AudioFormat.CHANNEL_IN_MONO,
+                                    AudioFormat.ENCODING_PCM_16BIT,
+                                    bufferSizeInBytes);
 
-    private void DoLog(String msg) {
-        Log.d(logTag, msg);
+    } catch (IllegalArgumentException e) {
+      Logd(e.getMessage());
+      return -1;
     }
+    assertTrue(audioRecord.getState() == AudioRecord.STATE_INITIALIZED);
 
-    private void DoLogErr(String msg) {
-        Log.e(logTag, msg);
+    Logd("AudioRecord " +
+          "session ID: " + audioRecord.getAudioSessionId() + ", " +
+          "audio format: " + audioRecord.getAudioFormat() + ", " +
+          "channels: " + audioRecord.getChannelCount() + ", " +
+          "sample rate: " + audioRecord.getSampleRate());
+    Logd("AcousticEchoCanceler.isAvailable: " + builtInAECIsAvailable());
+    if (!builtInAECIsAvailable()) {
+      return framesPerBuffer;
     }
+    if (WebRtcAudioUtils.deviceIsBlacklistedForHwAecUsage()) {
+      // Just in case, ensure that no attempt has been done to enable the
+      // HW AEC on a blacklisted device.
+      assertTrue(!useBuiltInAEC);
+    }
+    // We create an AEC also for blacklisted devices since it is possible that
+    // HW EAC is enabled by default. Hence, the AEC object is needed to be
+    // able to check the current state and to disable the AEC if enabled.
+    aec = AcousticEchoCanceler.create(audioRecord.getAudioSessionId());
+    if (aec == null) {
+      Loge("AcousticEchoCanceler.create failed");
+      return -1;
+    }
+    int ret = aec.setEnabled(useBuiltInAEC);
+    if (ret != AudioEffect.SUCCESS) {
+      Loge("AcousticEchoCanceler.setEnabled failed");
+      return -1;
+    }
+    Descriptor descriptor = aec.getDescriptor();
+    Logd("AcousticEchoCanceler " +
+          "name: " + descriptor.name + ", " +
+          "implementor: " + descriptor.implementor + ", " +
+          "uuid: " + descriptor.uuid);
+    Logd("AcousticEchoCanceler.getEnabled: " + aec.getEnabled());
+    return framesPerBuffer;
+  }
+
+  private boolean StartRecording() {
+    Logd("StartRecording");
+    assertTrue(audioRecord != null);
+    assertTrue(audioThread == null);
+    try {
+      audioRecord.startRecording();
+    } catch (IllegalStateException e) {
+      Loge("AudioRecord.startRecording failed: " + e.getMessage());
+      return false;
+    }
+    if (audioRecord.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
+      Loge("AudioRecord.startRecording failed");
+      return false;
+    }
+    audioThread = new AudioRecordThread("AudioRecordJavaThread");
+    audioThread.start();
+    return true;
+  }
+
+  private boolean StopRecording() {
+    Logd("StopRecording");
+    assertTrue(audioThread != null);
+    audioThread.joinThread();
+    audioThread = null;
+    if (aec != null) {
+      aec.release();
+      aec = null;
+    }
+    audioRecord.release();
+    audioRecord = null;
+    return true;
+  }
+
+  // Returns true if built-in AEC is available. Does not take blacklisting
+  // into account.
+  private static boolean builtInAECIsAvailable() {
+    return WebRtcAudioUtils.isAcousticEchoCancelerSupported();
+  }
+
+  // Helper method which throws an exception  when an assertion has failed.
+  private static void assertTrue(boolean condition) {
+    if (!condition) {
+      throw new AssertionError("Expected condition to be true");
+    }
+  }
+
+  private static void Logd(String msg) {
+    Log.d(TAG, msg);
+  }
+
+  private static void Loge(String msg) {
+    Log.e(TAG, msg);
+  }
+
+  private native void nativeCacheDirectBufferAddress(
+      ByteBuffer byteBuffer, long nativeAudioRecord);
+
+  private native void nativeDataIsRecorded(int bytes, long nativeAudioRecord);
 }

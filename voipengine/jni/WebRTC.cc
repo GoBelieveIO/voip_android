@@ -1,7 +1,5 @@
 #include "WebRTC.h"
-#include "voip.h"
-
-
+#include "jni_helpers.h"
 
 WebRTC* WebRTC::sharedWebRTC() {
 	static WebRTC *obj = NULL;
@@ -34,7 +32,9 @@ WebRTC::WebRTC() {
 	
 	
 	voe_apm = webrtc::VoEAudioProcessing::GetInterface(voe);
-	
+
+
+#if 0	
 	video_engine = webrtc::VideoEngine::Create();
 	EXPECT_TRUE(video_engine != NULL);
 	EXPECT_EQ(0, video_engine->SetTraceFilter(webrtc::kTraceInfo));
@@ -63,4 +63,5 @@ WebRTC::WebRTC() {
 	
 	image_process = webrtc::ViEImageProcess::GetInterface(video_engine);
 	EXPECT_TRUE(image_process != NULL);
+#endif
 }
