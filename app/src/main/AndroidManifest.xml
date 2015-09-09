@@ -10,9 +10,13 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.CAMERA" />
 
+    <uses-feature android:name="android.hardware.camera" />
 
     <application
+        android:name="io.gobelieve.voip_demo.Application"
+        android:debuggable="true"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
@@ -27,7 +31,13 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="io.gobelieve.voip_demo.VOIPActivity"
+            android:name="io.gobelieve.voip_demo.VOIPVoiceActivity"
+            android:screenOrientation="portrait"
+            android:label="voip" >
+        </activity>
+
+        <activity
+            android:name="io.gobelieve.voip_demo.VOIPVideoActivity"
             android:screenOrientation="portrait"
             android:label="voip" >
         </activity>

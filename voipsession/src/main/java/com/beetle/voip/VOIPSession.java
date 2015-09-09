@@ -25,6 +25,11 @@ public class VOIPSession implements VOIPObserver {
     private static final int VOIP_HANGED_UP = 7;//通话被挂断
     private static final int VOIP_SHUTDOWN = 8;//对方正在通话中，连接被终止
 
+
+    //session mode
+    private static final int SESSION_VOICE = 0;
+    private static final int SESSION_VIDEO = 1;
+
     private static final String TAG = "voip";
 
     public static final String STUN_SERVER = "stun.counterpath.net";
@@ -57,7 +62,7 @@ public class VOIPSession implements VOIPObserver {
     private VOIPSessionObserver observer;
 
     private int state;
-
+    private int mode;
 
     public static interface VOIPSessionObserver  {
         //对方拒绝接听
@@ -165,6 +170,7 @@ public class VOIPSession implements VOIPObserver {
 
     public void dial() {
         state = VOIPSession.VOIP_DIALING;
+        mode = SESSION_VOICE;
         this.dialBeginTimestamp = getNow();
 
         sendDial();
@@ -178,6 +184,23 @@ public class VOIPSession implements VOIPObserver {
         this.dialTimer.setTimer(uptimeMillis()+1000, 1000);
         this.dialTimer.resume();
 
+    }
+
+    public void dialVideo() {
+        state = VOIPSession.VOIP_DIALING;
+        mode = SESSION_VIDEO;
+        this.dialBeginTimestamp = getNow();
+
+        sendDial();
+
+        this.dialTimer = new Timer() {
+            @Override
+            protected void fire() {
+                VOIPSession.this.sendDial();
+            }
+        };
+        this.dialTimer.setTimer(uptimeMillis()+1000, 1000);
+        this.dialTimer.resume();
     }
 
     public void accept() {
@@ -356,7 +379,13 @@ public class VOIPSession implements VOIPObserver {
         VOIPControl ctl = new VOIPControl();
         ctl.sender = currentUID;
         ctl.receiver = peerUID;
-        ctl.cmd = VOIPControl.VOIP_COMMAND_DIAL;
+        if (mode == SESSION_VOICE) {
+            ctl.cmd = VOIPControl.VOIP_COMMAND_DIAL;
+        } else if (mode == SESSION_VIDEO) {
+            ctl.cmd = VOIPControl.VOIP_COMMAND_DIAL_VIDEO;
+        } else {
+            assert(false);
+        }
         ctl.dialCount = this.dialCount + 1;
 
         Log.i(TAG, "dial......");

@@ -27,12 +27,12 @@ public:
 
     //implement webrtc::newapi::Transport
     virtual bool SendRtp(const uint8_t* data, size_t len) {
-        LOG("send rtp:%ud", len);
+        //LOG("send rtp:%ud", len);
         sendPacket(data, len, VOIP_VIDEO, true);
         return true;
     }
     virtual bool SendRtcp(const uint8_t* data, size_t len) {
-        LOG("send rtcp:%ud", len);
+        //LOG("send rtcp:%ud", len);
         sendPacket(data, len, VOIP_VIDEO, false);
         return true;
     }
@@ -42,7 +42,62 @@ public:
         LOG("cpu load:%d", load);
     }
 
+private:
+    static void* recv_thread(void *arg) {
+        VOIP *This = (VOIP*)arg;
+        This->recvLoop();
+        LOG("recv thread exit");
+        return NULL;
+    }
 
+    void recvLoop() {
+        struct sockaddr_in addr;
+        int udpFD;
+        udpFD = socket(AF_INET, SOCK_DGRAM, 0);
+        bzero(&addr, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(voipPort);
+
+        int one = 1; 
+        setsockopt(udpFD, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+        bind(udpFD, (struct sockaddr*)&addr, sizeof(addr));
+
+        this->udpFD = udpFD;
+
+        sendAuth();
+
+        unsigned long lastAuthTS = getNow();
+        while (this->_is_active) {
+            fd_set rds;
+            struct timeval timeout;
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 1000*400;//400ms
+
+            FD_ZERO(&rds);
+            FD_SET(udpFD, &rds);
+            int r = select(udpFD + 1, &rds, NULL, NULL, &timeout);
+            if (r == -1) {
+                LOG("select error:%s", strerror(errno));
+                break;
+            } else if (r == 1) {
+                handleRead();
+            }
+
+            unsigned long now = getNow();
+            if (!this->isAuth && (now - lastAuthTS) > 1*1000) {
+                sendAuth();
+                lastAuthTS = now;
+            } else if (this->isAuth && (now - lastAuthTS) > 10*1000) {
+                sendAuth();
+                lastAuthTS = now;
+            }
+        }
+
+        this->udpFD = -1;
+        close(udpFD);
+
+    }
 private:
     void sendAuth() {
         if (strlen(token) == 0) {
@@ -153,7 +208,7 @@ public:
     VOIP(bool videoEnabled, int64_t selfUID, int64_t peerUID, const char *token, 
          const char *hostIP, int voipPort, const char *peerIP, int peerPort, bool isCaller,
          webrtc::VideoRenderer *localRender, webrtc::VideoRenderer *remoteRender)
-        :_videoEnabled(videoEnabled), j_voip(NULL), 
+        :j_voip(NULL), _videoEnabled(videoEnabled),
         _sendStream(NULL), 
         _recvStream(NULL), _is_active(false),
         udpFD(-1), beginTime(0), isPeerConnected(false), 
@@ -216,7 +271,8 @@ public:
             sendStream = new AVSendStream(2, this);
         }
         sendStream->setCall(_call);
-        
+        sendStream->setRender(localRender);
+
         sendStream->start();
 
         _sendStream = sendStream;
@@ -246,8 +302,9 @@ public:
         } else {
             startAudioStream();
         }
+        
+        pthread_create(&_thread, NULL, VOIP::recv_thread, this);
 
-        listenVOIP();
         beginTime = getNow();
     }
 
@@ -296,7 +353,7 @@ public:
             stopAudioStream();
         }
 
-        closeUDP();
+        pthread_join(_thread, NULL);
     }
 
 
@@ -333,10 +390,6 @@ public:
         type = *p++;
         packet_type = *p++;
 
-        if (_recvStream == NULL) {
-            LOG("drop frame sender:%lld receiver:%lld type:%d", sender, receiver, type);
-            return;
-        }
 
         bool isP2P = false;
         if (strlen(peerIP) > 0 && peerPort > 0) {
@@ -351,19 +404,44 @@ public:
             }
         }
 
-        //LOG("recv packet:%d type:%d", packet_type, n-18);
-        WebRTC *rtc = WebRTC::sharedWebRTC();
-        if (packet_type == VOIP_RTP) {
-            if (type == VOIP_AUDIO) {
-                rtc->voe_network->ReceivedRTPPacket(_recvStream->VoiceChannel(), p, len-18);
-            } else if (type == VOIP_VIDEO && _videoEnabled && _call) {
-                _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len-18);
+        if (!_videoEnabled) {
+
+            if (_audioRecvStream == NULL) {
+                LOG("drop frame sender:%lld receiver:%lld type:%d", sender, receiver, type);
+                return;
             }
-        } else if (packet_type == VOIP_RTCP) {
-            if (type == VOIP_AUDIO) {
-                rtc->voe_network->ReceivedRTCPPacket(_recvStream->VoiceChannel(), p, len-18);
-            } else if (type == VOIP_VIDEO && _videoEnabled && _call) {
-                _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len-18);
+            int channel = _audioRecvStream->VoiceChannel();
+            //LOG("recv packet:%d type:%d", packet_type, n-18);
+            WebRTC *rtc = WebRTC::sharedWebRTC();
+            if (packet_type == VOIP_RTP) {
+                if (type == VOIP_AUDIO) {
+                    rtc->voe_network->ReceivedRTPPacket(channel, p, len-18);
+                }
+            } else if (packet_type == VOIP_RTCP) {
+                if (type == VOIP_AUDIO) {
+                    rtc->voe_network->ReceivedRTCPPacket(channel, p, len-18);
+                }
+            }
+        } else {
+            if (_recvStream == NULL) {
+                LOG("drop frame sender:%lld receiver:%lld type:%d", sender, receiver, type);
+                return;
+            }
+            int channel = _recvStream->VoiceChannel();
+            //LOG("recv packet:%d type:%d", packet_type, n-18);
+            WebRTC *rtc = WebRTC::sharedWebRTC();
+            if (packet_type == VOIP_RTP) {
+                if (type == VOIP_AUDIO) {
+                    rtc->voe_network->ReceivedRTPPacket(channel, p, len-18);
+                } else if (type == VOIP_VIDEO && _call) {
+                    _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len-18);
+                }
+            } else if (packet_type == VOIP_RTCP) {
+                if (type == VOIP_AUDIO) {
+                    rtc->voe_network->ReceivedRTCPPacket(channel, p, len-18);
+                } else if (type == VOIP_VIDEO && _call) {
+                    _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len-18);
+                }
             }
         }
     }
@@ -395,48 +473,6 @@ public:
         } else if (cmd == VOIP_DATA) {
             handleVOIPData(buf+1, n-1, addr);
         }
-#ifdef COMPATIBLE
-        if (buf[0] == 0) {
-            handleVOIPData(buf, n, addr);
-            if (!isPeerNoHeader) {
-                isPeerNoHeader = true;
-                LOG("voip data has't data from peer");
-            }
-        }
-#endif
-    }
-
-    void listenVOIP() {
-        struct sockaddr_in addr;
-        int udpFD;
-        udpFD = socket(AF_INET, SOCK_DGRAM, 0);
-        bzero(&addr, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port = htons(voipPort);
-
-        int one = 1; 
-        setsockopt(udpFD, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
-        bind(udpFD, (struct sockaddr*)&addr, sizeof(addr));
-
-        sock_nonblock(udpFD, 1);
-
-        int events = ALOOPER_EVENT_INPUT;
-        ALooper* looper = ALooper_forThread();
-        ALooper_addFd(looper, udpFD, ALOOPER_POLL_CALLBACK, events, callback, this);
-
-        this->udpFD = udpFD;
-    }
-    
-    void closeUDP() {
-        if (this->udpFD == -1) {
-            return;
-        }
-        
-        ALooper* looper = ALooper_forThread();
-        ALooper_removeFd(looper, this->udpFD);
-        close(this->udpFD);
-        this->udpFD = -1;
     }
 
  private:
@@ -461,11 +497,10 @@ public:
     }
 
 public:
-    bool _videoEnabled;
-
     jobject j_voip;
-public:
 
+private:
+    bool _videoEnabled;
     webrtc::VideoRenderer *localRender;
     webrtc::VideoRenderer *remoteRender;
 
@@ -489,7 +524,7 @@ private:
     int peerPort;
     struct sockaddr_in peerAddr;
 
-    bool _is_active;
+    volatile bool _is_active;
     int udpFD;
     unsigned long beginTime;
     bool isPeerConnected;
@@ -498,4 +533,5 @@ private:
 
 
     webrtc::Call *_call;
+    pthread_t _thread;
 };

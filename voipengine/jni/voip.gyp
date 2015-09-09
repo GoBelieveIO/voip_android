@@ -21,6 +21,7 @@
           ],
           'include_dirs': [
               '<(webrtc_root)/../',
+              '<(webrtc_root)/../third_party/libyuv/include',
         ],
         'sources': [
             'video_renderer_jni.cc',
@@ -34,6 +35,8 @@
             'jni_helpers.cc',
             'util.cc',
             'on_load.cc',
+            'androidmediadecoder_jni.cc',
+            'androidmediaencoder_jni.cc',
         ],
         'link_settings': {
             'libraries': [
@@ -43,6 +46,16 @@
                 '-lOpenSLES',
             ],
         },
+        'cflags_cc!': [
+            '-Werror=reorder',
+            '-Werror=unused-variable',
+            '-Wsign-compare',
+        ],
+        'cflags_cc': [
+            '-Wno-sign-compare',
+            '-Wno-unused-variable',
+            '-Wno-reorder',
+        ],
         'variables': {
             # This library uses native JNI exports; tell GYP so that the
             # required symbols will be kept.

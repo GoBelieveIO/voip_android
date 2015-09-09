@@ -10,12 +10,12 @@
 
 #include <jni.h>
 #include <assert.h>
-//#include "webrtc/video_engine/include/vie_base.h"
 #include <stdint.h>
 #include "webrtc/modules/video_capture/video_capture_internal.h"
 #include "webrtc/modules/video_render/video_render_internal.h"
 #include "webrtc/modules/utility/interface/jvm_android.h"
 #include "webrtc/voice_engine/include/voe_base.h"
+#include "voip_jni.h"
 #include "jni_helpers.h"
 #include "classreferenceholder.h"
 

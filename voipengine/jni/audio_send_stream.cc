@@ -1,5 +1,5 @@
 #include "audio_send_stream.h"
-#include "jni_helpers.h"
+#include "voip_jni.h"
 
 #include "webrtc/voice_engine/include/voe_network.h"
 #include "webrtc/voice_engine/include/voe_base.h"

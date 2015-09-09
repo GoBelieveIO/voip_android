@@ -1,5 +1,5 @@
 #include "WebRTC.h"
-#include "jni_helpers.h"
+#include "voip_jni.h"
 
 WebRTC* WebRTC::sharedWebRTC() {
 	static WebRTC *obj = NULL;

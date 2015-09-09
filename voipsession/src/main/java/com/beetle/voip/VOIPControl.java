@@ -13,10 +13,12 @@ public class VOIPControl {
     public static final int VOIP_COMMAND_HANG_UP = 6;
     public static final int VOIP_COMMAND_TALKING = 8;
 
+    public static final int VOIP_COMMAND_DIAL_VIDEO = 9;
+
     public long sender;
     public long receiver;
     public int cmd;
-    public int dialCount;//只对VOIP_COMMAND_DIAL有意义
+    public int dialCount;//只对VOIP_COMMAND_DIAL, VOIP_COMMAND_DIAL_VIDEO有意义
 
 
     public NatPortMap natMap; //VOIP_COMMAND_ACCEPT，VOIP_COMMAND_CONNECTED

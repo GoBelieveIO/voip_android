@@ -20,7 +20,7 @@
 #include "jni_helpers.h"
 #include "classreferenceholder.h"
 #include "webrtc/base/scoped_ptr.h"
-
+#include "voip_jni.h"
 
 #define UNUSED(x) (void)(x)
 

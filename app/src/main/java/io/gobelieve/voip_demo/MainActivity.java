@@ -1,8 +1,11 @@
 package io.gobelieve.voip_demo;
 
+
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.hardware.Camera;
 import android.os.AsyncTask;
+import android.os.Environment;
 import android.provider.Settings;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -27,9 +30,13 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HTTP;
 import org.json.JSONObject;
+import org.webrtc.MediaCodecVideoDecoder;
+import org.webrtc.MediaCodecVideoEncoder;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
-
+import android.util.Log;
 
 public class MainActivity extends ActionBarActivity implements VOIPObserver {
 
@@ -62,10 +69,6 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
         VOIPService.getInstance().setHost(sdkHost);
         VOIPService.getInstance().registerConnectivityChangeReceiver(getApplicationContext());
         VOIPService.getInstance().setDeviceID(androidID);
-
-
-        //初始化webrtc
-        new NativeWebRtcContextRegistry().register(getApplicationContext());
     }
 
 
@@ -91,6 +94,56 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
         return super.onOptionsItemSelected(item);
     }
 
+    public void dialVideo(View v) {
+        try {
+            final long myUID = Long.parseLong(myEditText.getText().toString());
+            final long peerUID = Long.parseLong(peerEditText.getText().toString());
+
+            if (myUID == 0 || peerUID == 0) {
+                return;
+            }
+
+            if (mLoginTask != null) {
+                return;
+            }
+
+            final ProgressDialog dialog = ProgressDialog.show(this, null, "登录中...");
+
+            mLoginTask = new AsyncTask<Void, Integer, String>() {
+                @Override
+                protected String doInBackground(Void... urls) {
+                    return MainActivity.this.login(myUID);
+                }
+
+                @Override
+                protected void onPostExecute(String result) {
+                    mLoginTask = null;
+                    dialog.dismiss();
+                    if (result != null && result.length() > 0) {
+                        //设置用户id,进入MainActivity
+                        String token = result;
+                        MainActivity.this.token = token;
+                        VOIPService.getInstance().setToken(token);
+                        VOIPService.getInstance().start();
+
+                        Intent intent = new Intent(MainActivity.this, VOIPVideoActivity.class);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        intent.putExtra("peer_uid", peerUID);
+                        intent.putExtra("peer_name", "测试");
+                        intent.putExtra("current_uid", myUID);
+                        intent.putExtra("token", token);
+                        intent.putExtra("is_caller", true);
+                        startActivity(intent);
+
+                    } else {
+                        Toast.makeText(MainActivity.this, "登陆失败", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }.execute();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     public void dial(View v) {
         try {
@@ -125,7 +178,7 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                         VOIPService.getInstance().setToken(token);
                         VOIPService.getInstance().start();
 
-                        Intent intent = new Intent(MainActivity.this, VOIPActivity.class);
+                        Intent intent = new Intent(MainActivity.this, VOIPVoiceActivity.class);
                         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         intent.putExtra("peer_uid", peerUID);
                         intent.putExtra("peer_name", "测试");
@@ -247,7 +300,20 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
             if (ctl.sender == peerUID) {
                 dialog.dismiss();
 
-                Intent intent = new Intent(MainActivity.this, VOIPActivity.class);
+                Intent intent = new Intent(MainActivity.this, VOIPVoiceActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                intent.putExtra("peer_uid", peerUID);
+                intent.putExtra("peer_name", "测试");
+                intent.putExtra("current_uid", myUID);
+                intent.putExtra("token", token);
+                intent.putExtra("is_caller", false);
+                startActivity(intent);
+            }
+        } else if (ctl.cmd == VOIPControl.VOIP_COMMAND_DIAL_VIDEO) {
+            if (ctl.sender == peerUID) {
+                dialog.dismiss();
+
+                Intent intent = new Intent(MainActivity.this, VOIPVideoActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 intent.putExtra("peer_uid", peerUID);
                 intent.putExtra("peer_name", "测试");

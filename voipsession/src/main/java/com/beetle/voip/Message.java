@@ -77,7 +77,8 @@ class Message {
             BytePacket.writeInt32(ctl.cmd, buf, pos);
             pos += 4;
 
-            if (ctl.cmd == VOIPControl.VOIP_COMMAND_DIAL) {
+            if (ctl.cmd == VOIPControl.VOIP_COMMAND_DIAL ||
+                  ctl.cmd == VOIPControl.VOIP_COMMAND_DIAL_VIDEO) {
                 BytePacket.writeInt32(ctl.dialCount, buf, pos);
                 pos += 4;
                 return Arrays.copyOf(buf, HEAD_SIZE + 24);
@@ -137,7 +138,8 @@ class Message {
             pos += 8;
             ctl.cmd = BytePacket.readInt32(data, pos);
             pos += 4;
-            if (ctl.cmd == VOIPControl.VOIP_COMMAND_DIAL) {
+            if (ctl.cmd == VOIPControl.VOIP_COMMAND_DIAL ||
+                    ctl.cmd == VOIPControl.VOIP_COMMAND_DIAL_VIDEO) {
                 ctl.dialCount = BytePacket.readInt32(data, pos);
             } else if (ctl.cmd == VOIPControl.VOIP_COMMAND_ACCEPT) {
                 if (data.length >= HEAD_SIZE + 26) {

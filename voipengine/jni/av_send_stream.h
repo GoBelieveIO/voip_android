@@ -17,6 +17,7 @@ namespace webrtc {
     class Call;
     class VideoSendStream;
     class VideoEncoder;
+    class VideoRenderer;
 }
 
 class WebRtcVcmFactory;
@@ -36,6 +37,12 @@ public:
     void setCall(webrtc::Call *c) {
         call_ = c;
     }
+
+    void setRender(webrtc::VideoRenderer *render) {
+        render_ = render;
+    }
+
+    void sendKeyFrame();
 
     //implement VideoCaptureDataCallback
     virtual void OnIncomingCapturedFrame(const int32_t id,
@@ -82,7 +89,7 @@ private:
     webrtc::VideoSendStream *stream_;
     webrtc::VideoEncoder *encoder_;
 
-
+    webrtc::VideoRenderer *render_;
 };
 
 

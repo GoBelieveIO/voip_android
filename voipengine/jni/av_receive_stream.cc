@@ -42,12 +42,15 @@
 #include "webrtc/modules/video_capture/include/video_capture_factory.h"
 #include "webrtc/system_wrappers/interface/tick_util.h"
 
+#include "androidmediadecoder_jni.h"
+#include "androidmediaencoder_jni.h"
 
 #include "ChannelTransport.h"
 
 #undef LOG
 
-#include "jni_helpers.h"
+//#include "jni_helpers.h"
+#include "voip_jni.h"
 
 const char kVp8CodecName[] = "VP8";
 const char kVp9CodecName[] = "VP9";
@@ -67,7 +70,7 @@ AVReceiveStream::AVReceiveStream(int32_t lssrc, int32_t rssrc, VoiceTransport *t
     voiceTransport(t), localSSRC(lssrc), remoteSSRC(rssrc),
     voiceChannel(-1), voiceChannelTransport(NULL),
     call_(NULL), stream_(NULL), audioStream_(NULL),
-    decoder_(NULL) {
+    decoder_(NULL), renderFrames_(0) {
     
 }
 
@@ -80,17 +83,33 @@ void AVReceiveStream::start() {
     type = webrtc::kVideoCodecVP8;
     codec_name = kVp8CodecName;
     pl_type = kDefaultVp8PlType;
-    
+
+    // type = webrtc::kVideoCodecH264;
+    // codec_name = kH264CodecName;
+    // pl_type = kDefaultH264PlType;
 
     webrtc::VideoDecoder *video_decoder = NULL;
     
-    if (type == webrtc::kVideoCodecVP8) {
-        video_decoder = webrtc::VideoDecoder::Create(webrtc::VideoDecoder::kVp8);
-    } else if (type == webrtc::kVideoCodecVP9) {
-       video_decoder = webrtc::VideoDecoder::Create(webrtc::VideoDecoder::kVp9);
-    } else if (type == webrtc::kVideoCodecH264) {
-       video_decoder = webrtc::VideoDecoder::Create(webrtc::VideoDecoder::kH264);
+    webrtc_jni::MediaCodecVideoDecoderFactory *f = new webrtc_jni::MediaCodecVideoDecoderFactory();
+
+    //video_decoder = f->CreateVideoDecoder(type);
+
+    if (video_decoder == NULL) {
+        if (type == webrtc::kVideoCodecVP8) {
+            video_decoder = webrtc::VideoDecoder::Create(webrtc::VideoDecoder::kVp8);
+        } else if (type == webrtc::kVideoCodecVP9) {
+            video_decoder = webrtc::VideoDecoder::Create(webrtc::VideoDecoder::kVp9);
+        } else if (type == webrtc::kVideoCodecH264) {
+            video_decoder = webrtc::VideoDecoder::Create(webrtc::VideoDecoder::kH264);
+        }
+        assert(video_decoder);
+        LOG("software decode:%s", codec_name);
+    } else {
+        LOG("hardware decode:%s", codec_name);
     }
+
+    delete f;
+
   
     
     webrtc::VideoReceiveStream::Decoder decoder;
@@ -149,7 +168,12 @@ void AVReceiveStream::stop() {
 
 void AVReceiveStream::RenderFrame(const webrtc::VideoFrame& video_frame,
                                           int time_to_render_ms) {
-    LOG("render frame:%d %d", video_frame.width(), video_frame.height());
+    
+    renderFrames_++;
+
+    if (renderFrames_ == 1) {
+        LOG("render frame:%d %d", video_frame.width(), video_frame.height());
+    }
 
     if (render_) {
         render_->RenderFrame(video_frame, time_to_render_ms);

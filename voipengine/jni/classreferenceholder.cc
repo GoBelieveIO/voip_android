@@ -25,9 +25,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include "talk/app/webrtc/java/jni/classreferenceholder.h"
+#include "classreferenceholder.h"
 
-#include "talk/app/webrtc/java/jni/jni_helpers.h"
+#include "jni_helpers.h"
 
 namespace webrtc_jni {
 
@@ -65,6 +65,12 @@ ClassReferenceHolder::ClassReferenceHolder(JNIEnv* jni) {
   LoadClass(jni, "java/nio/ByteBuffer");
 #if defined(ANDROID) && !defined(WEBRTC_CHROMIUM_BUILD)
   LoadClass(jni, "org/webrtc/EglBase");
+  LoadClass(jni, "org/webrtc/MediaCodecVideoEncoder");
+  LoadClass(jni, "org/webrtc/MediaCodecVideoEncoder$OutputBufferInfo");
+  LoadClass(jni, "org/webrtc/MediaCodecVideoEncoder$VideoCodecType");
+  LoadClass(jni, "org/webrtc/MediaCodecVideoDecoder");
+  LoadClass(jni, "org/webrtc/MediaCodecVideoDecoder$DecoderOutputBufferInfo");
+  LoadClass(jni, "org/webrtc/MediaCodecVideoDecoder$VideoCodecType");
   jclass j_egl_base_class = GetClass("org/webrtc/EglBase");
   jmethodID j_is_egl14_supported_method = jni->GetStaticMethodID(
       j_egl_base_class, "isEGL14Supported", "()Z");

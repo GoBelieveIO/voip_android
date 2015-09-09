@@ -9,6 +9,7 @@
 #include "classreferenceholder.h"
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/basictypes.h"
+#include "voip_jni.h"
 
 using rtc::scoped_ptr;
 using namespace webrtc_jni;

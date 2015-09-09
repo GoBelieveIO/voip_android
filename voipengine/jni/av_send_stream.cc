@@ -35,6 +35,7 @@
 #include "webrtc/voice_engine/include/voe_rtp_rtcp.h"
 #include "webrtc/voice_engine/include/voe_hardware.h"
 
+#include "webrtc/video_engine/vie_encoder.h"
 
 #include "webrtc/engine_configurations.h"
 #include "webrtc/modules/video_render/include/video_render_defines.h"
@@ -46,12 +47,22 @@
 #include "WebRTC.h"
 #include "AVTransport.h"
 #include "ChannelTransport.h"
-#include "jni_helpers.h"
+
+#include "androidmediadecoder_jni.h"
+#include "androidmediaencoder_jni.h"
+
+#include "voip_jni.h"
 
 #define DEFAULT_AUDIO_CODEC                             "ILBC"//"ISAC"
 
+#define WIDTH 352
+#define HEIGHT 288
+#define FPS 30
 
-////////////////////////////////////////////////////////////////////
+//portrait
+#define STREAM_WIDTH 240
+#define STREAM_HEIGHT 320
+
 
 const char kVp8CodecName[] = "VP8";
 const char kVp9CodecName[] = "VP9";
@@ -68,7 +79,7 @@ const int kDefaultRtxVp8PlType = 96;
 
 const int kMinVideoBitrate = 30;
 const int kStartVideoBitrate = 300;
-const int kMaxVideoBitrate = 2000;
+const int kMaxVideoBitrate = 1000;
 
 const int kMinBandwidthBps = 30000;
 const int kStartBandwidthBps = 300000;
@@ -78,9 +89,6 @@ const int kMaxBandwidthBps = 2000000;
 const int kDefaultVideoMaxFramerate = 30;
 
 static const int kDefaultQpMax = 56;
-
-const char kCodecParamMaxBitrate[] = "x-google-max-bitrate";
-
 
 
 class WebRtcVcmFactory {
@@ -106,8 +114,6 @@ AVSendStream::AVSendStream(int32_t ssrc, VoiceTransport *t):
     call_(NULL), stream_(NULL), encoder_(NULL) {
     factory_ =new WebRtcVcmFactory();
 
-    const char *device_name = "Camera 1, Facing front, Orientation 270";
-        
     webrtc::VideoCaptureModule::DeviceInfo* info = factory_->CreateDeviceInfo(0);
     if (!info) {
         return;
@@ -125,7 +131,8 @@ AVSendStream::AVSendStream(int32_t ssrc, VoiceTransport *t):
                                 vcm_id, ARRAY_SIZE(vcm_id)) != -1) {
                 
             LOG("vcm name:%s", vcm_name);
-            if (strcmp(vcm_name, device_name) == 0) {
+            //"Facing back" or "Facing front"
+            if (strstr(vcm_name, "Facing front") != NULL) {
                 found = true;
                 break;
             }
@@ -133,7 +140,7 @@ AVSendStream::AVSendStream(int32_t ssrc, VoiceTransport *t):
     }
         
     if (!found) {
-        LOG("Failed to find capturer for name:%s", device_name);
+        LOG("Failed to find capturer");
         factory_->DestroyDeviceInfo(info);
         return;
     }
@@ -150,7 +157,7 @@ AVSendStream::AVSendStream(int32_t ssrc, VoiceTransport *t):
         
     module_ = factory_->Create(0, vcm_id);
     if (!module_) {
-        LOG("Failed to create capturer for name:%s ", device_name);
+        LOG("Failed to create capturer");
         return;
     }
         
@@ -163,9 +170,11 @@ AVSendStream::~AVSendStream() {
     delete factory_;
 }
 
-#define WIDTH 352
-#define HEIGHT 288
-#define FPS 10
+void AVSendStream::sendKeyFrame() {
+    if (stream_) {
+        stream_->encoder()->SendKeyFrame();
+    }
+}
 
 void AVSendStream::start() {
 
@@ -187,7 +196,6 @@ void AVSendStream::start() {
     startSendStream();
 
     startAudioStream();
-
 }
 
 
@@ -218,24 +226,19 @@ void AVSendStream::startAudioStream()
     voiceChannel = rtc->voe_base->CreateChannel();
 
     voiceChannelTransport = new VoiceChannelTransport(rtc->voe_network, voiceChannel, this->voiceTransport, true);
-    //int error = 0;
-    //int audio_capture_device_index = recordDeviceIndex;
-    //error = rtc->voe_hardware->SetRecordingDevice(audio_capture_device_index);
-    setSendVoiceCodec();
 
-    //EXPECT_EQ(0, error);
+    setSendVoiceCodec();
 
     rtc->voe_base->StartSend(voiceChannel);
 }
-
 
 
 std::vector<webrtc::VideoStream> CreateVideoStreams() {
     int max_bitrate_bps = kMaxVideoBitrate * 1000;
     
     webrtc::VideoStream stream;
-    stream.width = WIDTH;
-    stream.height = HEIGHT;
+    stream.width = STREAM_WIDTH;
+    stream.height = STREAM_HEIGHT;
     stream.max_framerate = 30;
     
     stream.min_bitrate_bps = kMinVideoBitrate * 1000;
@@ -277,6 +280,7 @@ void* AVSendStream::ConfigureVideoEncoderSettings(webrtc::VideoCodecType type) {
 }
 
 
+
 void AVSendStream::startSendStream() {
     struct webrtc::VideoEncoderConfig encoder_config = CreateVideoEncoderConfig();
     if (encoder_config.streams.empty()) {
@@ -292,14 +296,31 @@ void AVSendStream::startSendStream() {
     type = webrtc::kVideoCodecVP8;
     codec_name = kVp8CodecName;
     pl_type = kDefaultVp8PlType;
-    
-    if (type == webrtc::kVideoCodecVP8) {
-        encoder = webrtc::VideoEncoder::Create(webrtc::VideoEncoder::kVp8);
-    } else if (type == webrtc::kVideoCodecVP9) {
-        encoder = webrtc::VideoEncoder::Create(webrtc::VideoEncoder::kVp9);
-    } else if (type == webrtc::kVideoCodecH264) {
-        encoder = webrtc::VideoEncoder::Create(webrtc::VideoEncoder::kH264);
+
+    // type = webrtc::kVideoCodecH264;
+    // codec_name = kH264CodecName;
+    // pl_type = kDefaultH264PlType;
+
+
+    webrtc_jni::MediaCodecVideoEncoderFactory *f = new webrtc_jni::MediaCodecVideoEncoderFactory();
+    //encoder = f->CreateVideoEncoder(type);
+
+    if (encoder == NULL) {
+        if (type == webrtc::kVideoCodecVP8) {
+            encoder = webrtc::VideoEncoder::Create(webrtc::VideoEncoder::kVp8);
+        } else if (type == webrtc::kVideoCodecVP9) {
+            encoder = webrtc::VideoEncoder::Create(webrtc::VideoEncoder::kVp9);
+        } else if (type == webrtc::kVideoCodecH264) {
+            encoder = webrtc::VideoEncoder::Create(webrtc::VideoEncoder::kH264);
+        }
+        assert(encoder);
+        LOG("software encode:%s", codec_name);
+    } else {
+        LOG("hardware encode:%s", codec_name);
     }
+
+    delete f;
+        
 
     webrtc::internal::VideoSendStream::Config config;
 
@@ -340,21 +361,24 @@ void AVSendStream::stop() {
     voiceChannelTransport = NULL;
 }
 
-
 // Callback when a frame is captured by camera.
 void AVSendStream::OnIncomingCapturedFrame(const int32_t id,
                                          const webrtc::VideoFrame& frame) {
-    LOG("on incoming...");
-
     ++captured_frames_;
     // Log the size and pixel aspect ratio of the first captured frame.
     if (1 == captured_frames_) {
-        LOG("frame width:%d heigth:%d", frame.width(), frame.height());
+        LOG("frame width:%d heigth:%d rotation:%d", frame.width(), frame.height(), frame.rotation());
     }
-    
-    if (stream_) {
+
+
+    //4帧取1帧, 8fps
+    if (stream_ && captured_frames_%4 == 0) {
         webrtc::VideoCaptureInput *input = stream_->Input();
         input->IncomingCapturedFrame(frame);
+    }
+
+    if (render_) {
+        render_->RenderFrame(frame, 0);
     }
 }
 

@@ -32,6 +32,8 @@ private:
 
     webrtc::VideoRenderer *render_;
 
+    int renderFrames_;
+
 private:
     void startAudioStream();
 
