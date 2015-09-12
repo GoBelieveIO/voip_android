@@ -172,7 +172,8 @@ public class VideoCaptureAndroid implements PreviewCallback, Callback {
       if (parameters.isVideoStabilizationSupported()) {
         parameters.setVideoStabilization(true);
       }
-      parameters.setPictureSize(width, height);
+      //bugfix can't set picture size
+      //parameters.setPictureSize(width, height);
       parameters.setPreviewSize(width, height);
 
       // Check if requested fps range is supported by camera,
