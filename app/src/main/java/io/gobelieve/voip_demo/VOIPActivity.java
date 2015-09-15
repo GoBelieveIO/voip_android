@@ -145,11 +145,6 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
             return;
         }
 
-
-
-
-
-
         sHandler = new Handler();
         sHandler.post(mHideRunnable);
         final View decorView = getWindow().getDecorView();
@@ -245,7 +240,7 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
     @Override
     protected void onDestroy () {
         Log.i(TAG, "voip activity on destroy");
-
+        VOIPService.getInstance().popVOIPObserver(this.voipSession);
         super.onDestroy();
     }
 
