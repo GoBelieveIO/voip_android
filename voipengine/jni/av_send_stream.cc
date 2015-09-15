@@ -75,7 +75,7 @@ const int kDefaultRedPlType = 116;
 const int kDefaultUlpfecType = 117;
 const int kDefaultRtxVp8PlType = 96;
 
-
+static const int kNackHistoryMs = 1000;
 
 const int kMinVideoBitrate = 30;
 const int kStartVideoBitrate = 300;
@@ -108,8 +108,8 @@ public:
 #define ARRAY_SIZE(x) (static_cast<int>(sizeof(x) / sizeof(x[0])))
 
 
-AVSendStream::AVSendStream(int32_t ssrc, VoiceTransport *t):
-    voiceTransport(t), ssrc(ssrc),
+AVSendStream::AVSendStream(int32_t ssrc, int32_t rtxSSRC, VoiceTransport *t):
+    voiceTransport(t), ssrc(ssrc), rtxSSRC(rtxSSRC),
     voiceChannel(-1), voiceChannelTransport(NULL), 
     call_(NULL), stream_(NULL), encoder_(NULL) {
     factory_ =new WebRtcVcmFactory();
@@ -329,7 +329,14 @@ void AVSendStream::startSendStream() {
     config.encoder_settings.payload_type = pl_type;
 
     config.rtp.ssrcs.push_back(ssrc);
-    config.rtp.nack.rtp_history_ms = 0;
+    config.rtp.nack.rtp_history_ms = kNackHistoryMs;
+    config.rtp.fec.ulpfec_payload_type = kDefaultUlpfecType;
+    config.rtp.fec.red_payload_type = kDefaultRedPlType;
+    config.rtp.fec.red_rtx_payload_type = kDefaultRtxVp8PlType;
+    
+    config.rtp.rtx.payload_type = kDefaultRtxVp8PlType;
+    config.rtp.rtx.ssrcs.push_back(rtxSSRC);
+
     
     encoder_config.encoder_specific_settings = ConfigureVideoEncoderSettings(type);
     webrtc::VideoSendStream *stream = call_->CreateVideoSendStream(config, encoder_config);
@@ -371,8 +378,8 @@ void AVSendStream::OnIncomingCapturedFrame(const int32_t id,
     }
 
 
-    //4帧取1帧, 8fps
-    if (stream_ && captured_frames_%4 == 0) {
+    //2帧取1帧
+    if (stream_ && captured_frames_%2 == 0) {
         webrtc::VideoCaptureInput *input = stream_->Input();
         input->IncomingCapturedFrame(frame);
     }

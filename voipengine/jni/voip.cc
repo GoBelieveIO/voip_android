@@ -9,7 +9,25 @@
 #include "audio_receive_stream.h"
 
 #include "AVTransport.h"
+#include <list>
 
+
+
+class VOIPData {
+public:
+    VOIPData(void *data, int len) {
+        _data = malloc(len);
+        memcpy(_data, data, len);
+        _length = len;
+    }
+
+    ~VOIPData() {
+        free(_data);
+    }
+
+    void *_data;
+    int _length;
+};
 
 class VOIP : public VoiceTransport, 
              public webrtc::newapi::Transport, 
@@ -50,6 +68,39 @@ private:
         return NULL;
     }
 
+    static void* deliver_thread(void *arg) {
+        VOIP *This = (VOIP*)arg;
+        This->deliverLoop();
+        LOG("deliver thread exit");
+        return NULL;
+    }
+
+    void deliverLoop() {
+        while (this->_is_active) {
+            pthread_mutex_lock(&_mutex);
+
+            while(_packets.size() == 0 && this->_is_active) {
+                struct timeval tv;
+                struct timespec ts;
+                gettimeofday(&tv, NULL);
+                ts.tv_sec = tv.tv_sec;
+                ts.tv_nsec = tv.tv_usec*1000 + 1000*1000*100;
+                //wait 100ms
+                pthread_cond_timedwait(&_cond, &_mutex, &ts);
+            }
+
+            std::vector<VOIPData*> packets(_packets);
+            _packets.erase(_packets.begin(), _packets.end());
+
+            pthread_mutex_unlock(&_mutex);
+
+            for (int i = 0; i < packets.size(); i++) {
+                VOIPData *vdata = packets[i];
+                onVOIPData(vdata);
+                delete vdata;
+            }
+        }
+    }
     void recvLoop() {
         struct sockaddr_in addr;
         int udpFD;
@@ -61,6 +112,18 @@ private:
 
         int one = 1; 
         setsockopt(udpFD, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+
+        int bufSize = 0;
+        socklen_t size = sizeof(bufSize);
+        getsockopt(udpFD, SOL_SOCKET, SO_RCVBUF, (void*)&bufSize, &size);
+        LOG("udp recv buf size:%d", bufSize);
+        bufSize = 1024 * 1024;
+        if (setsockopt(udpFD, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(int)) == -1) {
+            LOG("set sock recv buf size error");
+        } else {
+            LOG("new udp recv buf size:%d", bufSize);
+        }
+
         bind(udpFD, (struct sockaddr*)&addr, sizeof(addr));
 
         this->udpFD = udpFD;
@@ -224,6 +287,14 @@ public:
         this->_isCaller = isCaller;
         this->localRender = localRender;
         this->remoteRender = remoteRender;
+
+        pthread_mutex_init(&_mutex, NULL);
+        pthread_cond_init(&_cond, NULL);
+    }
+
+    ~VOIP() {
+        pthread_mutex_destroy(&_mutex);
+        pthread_cond_destroy(&_cond);
     }
 
     void setToken(const char *token) {
@@ -263,12 +334,12 @@ public:
 
         AVSendStream *sendStream = NULL;
         
-        //caller(1:3)
-        //callee(2:4)
+        //caller(1:3:101)
+        //callee(2:4:102)
         if (_isCaller) {
-            sendStream = new AVSendStream(1, this);
+            sendStream = new AVSendStream(1, 101, this);
         } else {
-            sendStream = new AVSendStream(2, this);
+            sendStream = new AVSendStream(2, 102, this);
         }
         sendStream->setCall(_call);
         sendStream->setRender(localRender);
@@ -279,9 +350,9 @@ public:
 
         AVReceiveStream *recvStream = NULL;
         if (_isCaller) {
-            recvStream = new AVReceiveStream(3, 2, this);
+            recvStream = new AVReceiveStream(3, 2, 102, this);
         } else {
-            recvStream = new AVReceiveStream(4, 1, this);
+            recvStream = new AVReceiveStream(4, 1, 101, this);
         }
         recvStream->setCall(_call);
 
@@ -304,6 +375,7 @@ public:
         }
         
         pthread_create(&_thread, NULL, VOIP::recv_thread, this);
+        pthread_create(&_deliverThread, NULL, VOIP::deliver_thread, this);
 
         beginTime = getNow();
     }
@@ -354,6 +426,12 @@ public:
         }
 
         pthread_join(_thread, NULL);
+        pthread_join(_deliverThread, NULL);
+
+        for (int i = 0; i < _packets.size(); i++) {
+            delete _packets[i];
+        }
+        _packets.erase(_packets.begin(), _packets.end());
     }
 
 
@@ -373,24 +451,63 @@ public:
         return REGISTER_CALLBACK;
     }
 
-    void handleVOIPData(char *buff, int len, struct sockaddr_in &addr) {
+    void onVOIPData(VOIPData *data) {
         int64_t sender, receiver;
         int packet_type;
         int type;
-        char *p = buff;
 
-        if (len <= 18) {
-            LOG("invalid voip data len:%d", len);
-            return;
-        }
+        char *p = (char*)data->_data;
+        int len = data->_length;
+
         sender = readInt64(p);
         p += 8;
         receiver = readInt64(p);
         p += 8;
         type = *p++;
         packet_type = *p++;
+        if (!_videoEnabled) {
 
+            if (_audioRecvStream == NULL) {
+                LOG("drop frame sender:%lld receiver:%lld type:%d", sender, receiver, type);
+                return;
+            }
+            int channel = _audioRecvStream->VoiceChannel();
+            WebRTC *rtc = WebRTC::sharedWebRTC();
+            if (packet_type == VOIP_RTP) {
+                if (type == VOIP_AUDIO) {
+                    rtc->voe_network->ReceivedRTPPacket(channel, p, len - 18);
+                }
+            } else if (packet_type == VOIP_RTCP) {
+                if (type == VOIP_AUDIO) {
+                    rtc->voe_network->ReceivedRTCPPacket(channel, p, len - 18);
+                }
+            }
+        } else {
+            if (_recvStream == NULL) {
+                LOG("drop frame sender:%lld receiver:%lld type:%d", sender, receiver, type);
+                return;
+            }
+            
+            int channel = _recvStream->VoiceChannel();
+            WebRTC *rtc = WebRTC::sharedWebRTC();
+            if (packet_type == VOIP_RTP) {
+                if (type == VOIP_AUDIO) {
+                    rtc->voe_network->ReceivedRTPPacket(channel, p, len-18);
+                } else if (type == VOIP_VIDEO && _call) {
+                    _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len - 18);
+                }
+            } else if (packet_type == VOIP_RTCP) {
+                if (type == VOIP_AUDIO) {
+                    rtc->voe_network->ReceivedRTCPPacket(channel, p, len - 18);
+                } else if (type == VOIP_VIDEO && _call) {
+                    _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len - 18);
+                }
+            }
+        }
+        
+    }
 
+    void handleVOIPData(char *buff, int len, struct sockaddr_in &addr) {
         bool isP2P = false;
         if (strlen(peerIP) > 0 && peerPort > 0) {
             isP2P = true;
@@ -404,46 +521,11 @@ public:
             }
         }
 
-        if (!_videoEnabled) {
-
-            if (_audioRecvStream == NULL) {
-                LOG("drop frame sender:%lld receiver:%lld type:%d", sender, receiver, type);
-                return;
-            }
-            int channel = _audioRecvStream->VoiceChannel();
-            //LOG("recv packet:%d type:%d", packet_type, n-18);
-            WebRTC *rtc = WebRTC::sharedWebRTC();
-            if (packet_type == VOIP_RTP) {
-                if (type == VOIP_AUDIO) {
-                    rtc->voe_network->ReceivedRTPPacket(channel, p, len-18);
-                }
-            } else if (packet_type == VOIP_RTCP) {
-                if (type == VOIP_AUDIO) {
-                    rtc->voe_network->ReceivedRTCPPacket(channel, p, len-18);
-                }
-            }
-        } else {
-            if (_recvStream == NULL) {
-                LOG("drop frame sender:%lld receiver:%lld type:%d", sender, receiver, type);
-                return;
-            }
-            int channel = _recvStream->VoiceChannel();
-            //LOG("recv packet:%d type:%d", packet_type, n-18);
-            WebRTC *rtc = WebRTC::sharedWebRTC();
-            if (packet_type == VOIP_RTP) {
-                if (type == VOIP_AUDIO) {
-                    rtc->voe_network->ReceivedRTPPacket(channel, p, len-18);
-                } else if (type == VOIP_VIDEO && _call) {
-                    _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len-18);
-                }
-            } else if (packet_type == VOIP_RTCP) {
-                if (type == VOIP_AUDIO) {
-                    rtc->voe_network->ReceivedRTCPPacket(channel, p, len-18);
-                } else if (type == VOIP_VIDEO && _call) {
-                    _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len-18);
-                }
-            }
-        }
+        VOIPData *vdata = new VOIPData(buff, len);
+        pthread_mutex_lock(&_mutex);
+        _packets.push_back(vdata);
+        pthread_cond_signal(&_cond);
+        pthread_mutex_unlock(&_mutex);
     }
 
     void handleAuthStatus(char *buff, int len) {
@@ -534,4 +616,10 @@ private:
 
     webrtc::Call *_call;
     pthread_t _thread;
+
+    pthread_t _deliverThread;
+    pthread_mutex_t _mutex;
+    pthread_cond_t _cond;
+
+    std::vector<VOIPData*> _packets;
 };

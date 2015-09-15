@@ -21,6 +21,7 @@ private:
     VoiceTransport *voiceTransport;
     int32_t localSSRC;
     int32_t remoteSSRC;
+    int32_t rtxSSRC;
 
     int voiceChannel;
     VoiceChannelTransport *voiceChannelTransport;
@@ -38,7 +39,7 @@ private:
     void startAudioStream();
 
 public:
-	AVReceiveStream(int32_t localSSRC, int32_t remoteSSRC, VoiceTransport *t);
+	AVReceiveStream(int32_t localSSRC, int32_t remoteSSRC, int32_t rtxSSRC, VoiceTransport *t);
     void start();
     void stop();
 
