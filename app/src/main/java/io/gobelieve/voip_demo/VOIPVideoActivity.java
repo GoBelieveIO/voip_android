@@ -5,6 +5,7 @@ import android.media.AudioManager;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Switch;
@@ -47,7 +48,7 @@ public class VOIPVideoActivity extends VOIPActivity {
 
         try {
             remoteRender = VideoRendererGui.createGui(0, 0, 100, 100, RendererCommon.ScalingType.SCALE_ASPECT_FIT, false);
-            localRender = VideoRendererGui.createGui(70, 70, 25, 25, RendererCommon.ScalingType.SCALE_ASPECT_FIT, false);
+            localRender = VideoRendererGui.createGui(70, 75, 25, 25, RendererCommon.ScalingType.SCALE_ASPECT_FIT, false);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -129,6 +130,12 @@ public class VOIPVideoActivity extends VOIPActivity {
         this.voip = null;
 
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
+
+    public void switchCamera(View v ) {
+        if (this.voip != null) {
+            this.voip.switchCamera();
+        }
     }
 
     @Override

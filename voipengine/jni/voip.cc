@@ -434,6 +434,11 @@ public:
         _packets.erase(_packets.begin(), _packets.end());
     }
 
+    void switchCamera() {
+        if (_sendStream) {
+            _sendStream->switchCamera();
+        }
+    }
 
     int sock_nonblock(int fd, int set) {
         int r;

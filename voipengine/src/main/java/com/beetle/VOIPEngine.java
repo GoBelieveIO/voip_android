@@ -63,6 +63,7 @@ public class VOIPEngine {
 
 	public native void start();	
 	public native void stop();
+    public native void switchCamera();
 
     static {
         System.loadLibrary("voip");

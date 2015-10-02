@@ -44,6 +44,8 @@ public:
 
     void sendKeyFrame();
 
+    void switchCamera();
+
     //implement VideoCaptureDataCallback
     virtual void OnIncomingCapturedFrame(const int32_t id,
                                          const webrtc::VideoFrame& videoFrame);
@@ -59,6 +61,8 @@ private:
 
     void startSendStream();
     void startAudioStream();
+
+    void startCapture(bool front);
 private:
 
     union VideoEncoderSettings {
@@ -91,6 +95,8 @@ private:
     webrtc::VideoEncoder *encoder_;
 
     webrtc::VideoRenderer *render_;
+
+    bool front_;
 };
 
 

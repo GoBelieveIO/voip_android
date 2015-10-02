@@ -93,7 +93,7 @@ void AVReceiveStream::start() {
     
     webrtc_jni::MediaCodecVideoDecoderFactory *f = new webrtc_jni::MediaCodecVideoDecoderFactory();
 
-    //video_decoder = f->CreateVideoDecoder(type);
+    video_decoder = f->CreateVideoDecoder(type);
 
     if (video_decoder == NULL) {
         if (type == webrtc::kVideoCodecVP8) {
