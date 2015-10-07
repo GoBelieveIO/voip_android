@@ -62,6 +62,7 @@ void AudioSendStream::start()
   WebRTC *rtc = WebRTC::sharedWebRTC();
   voiceChannel = rtc->voe_base->CreateChannel();
 
+  //register transport
   voiceChannelTransport = new VoiceChannelTransport(rtc->voe_network, voiceChannel, this->voiceTransport, true);
   setSendVoiceCodec();
 
@@ -73,13 +74,15 @@ void AudioSendStream::start()
 void AudioSendStream::stop() {
     
     WebRTC *rtc = WebRTC::sharedWebRTC();
+
+    //deregister transport
+    delete voiceChannelTransport;
+    voiceChannelTransport = NULL;
     
     rtc->voe_base->StopReceive(voiceChannel);
     rtc->voe_base->StopSend(voiceChannel);
     rtc->voe_base->DeleteChannel(voiceChannel);
     //    rtc->base->DisconnectAudioChannel(voiceChannel);
-    delete voiceChannelTransport;
-    voiceChannelTransport = NULL;
 }
 
 

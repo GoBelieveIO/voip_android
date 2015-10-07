@@ -384,11 +384,10 @@ void AVSendStream::stop() {
 
     //audio
     WebRTC *rtc = WebRTC::sharedWebRTC();
-
-    rtc->voe_base->StopSend(voiceChannel);
-    rtc->voe_base->DeleteChannel(voiceChannel);
     delete voiceChannelTransport;
     voiceChannelTransport = NULL;
+    rtc->voe_base->StopSend(voiceChannel);
+    rtc->voe_base->DeleteChannel(voiceChannel);
 }
 
 // Callback when a frame is captured by camera.

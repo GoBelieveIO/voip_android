@@ -173,6 +173,10 @@ void AVReceiveStream::stop() {
     decoder_ = NULL;
 
     WebRTC *rtc = WebRTC::sharedWebRTC();
+
+    delete voiceChannelTransport;
+    voiceChannelTransport = NULL;
+
     rtc->voe_base->StopReceive(voiceChannel);
     rtc->voe_base->StopPlayout(voiceChannel);
     rtc->voe_base->DeleteChannel(voiceChannel);

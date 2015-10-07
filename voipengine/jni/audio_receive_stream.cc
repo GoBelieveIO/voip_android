@@ -42,10 +42,11 @@ void AudioReceiveStream::start() {
 void AudioReceiveStream::stop() {
     WebRTC *rtc = WebRTC::sharedWebRTC();
 
+    delete this->voiceChannelTransport;
+    this->voiceChannelTransport = NULL;
+
     rtc->voe_base->StopReceive(this->voiceChannel);
     rtc->voe_base->StopPlayout(this->voiceChannel);
     rtc->voe_base->DeleteChannel(this->voiceChannel);
-    delete this->voiceChannelTransport;
-    this->voiceChannelTransport = NULL;
 }
 

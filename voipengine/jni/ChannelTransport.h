@@ -18,6 +18,7 @@ public:
     }
     
     virtual ~VoiceChannelTransport() {
+        voe_network_->DeRegisterExternalTransport(channel_);
         transport_ = NULL;
     }
     
