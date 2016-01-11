@@ -1,4 +1,4 @@
-package com.beetle.voip;
+package com.beetle.im;
 
 /**
  * Created by houxh on 14-12-31.

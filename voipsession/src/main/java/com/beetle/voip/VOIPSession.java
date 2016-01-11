@@ -1,10 +1,17 @@
 package com.beetle.voip;
 
 import android.os.AsyncTask;
+import android.text.TextUtils;
 import android.util.Log;
+
+import com.beetle.im.BytePacket;
+import com.beetle.im.Timer;
+import com.beetle.im.VOIPControl;
+import com.beetle.im.VOIPObserver;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.Date;
 
 import static android.os.SystemClock.uptimeMillis;
@@ -33,9 +40,12 @@ public class VOIPSession implements VOIPObserver {
     private static final String TAG = "voip";
 
     public static final String STUN_SERVER = "stun.counterpath.net";
+    public static final String VOIP_HOST = "voipnode.gobelieve.io";
     public static final int VOIP_PORT = 20002;
 
 
+    private String voipHostIP;
+    private String voipHost;
     private int voipPort;
     private String stunServer;
     private long currentUID;
@@ -88,6 +98,10 @@ public class VOIPSession implements VOIPObserver {
         this.stunServer = STUN_SERVER;
     }
 
+    public void setVoipHost(String voipHost) {
+        this.voipHost = voipHost;
+    }
+
     //获取中转服务器IP地址
     public String getRelayIP() {
         return relayIP;
@@ -133,6 +147,7 @@ public class VOIPSession implements VOIPObserver {
                 }
                 return false;
             }
+
             @Override
             protected void onPostExecute(Boolean result) {
                 if (!result) {
@@ -152,7 +167,7 @@ public class VOIPSession implements VOIPObserver {
                     try {
                         VOIPControl.NatPortMap natMap = new VOIPControl.NatPortMap();
                         natMap.ip = BytePacket.packInetAddress(ma.getAddress().getAddress());
-                        natMap.port = (short)ma.getPort();
+                        natMap.port = (short) ma.getPort();
 
                         VOIPSession.this.localNatMap = natMap;
 
@@ -166,8 +181,46 @@ public class VOIPSession implements VOIPObserver {
             }
         };
         task.execute();
-    }
 
+        //解析voip中专服务器的域名
+        new AsyncTask<Void, Integer, String>() {
+            @Override
+            protected String doInBackground(Void... params) {
+                for (int i = 0; i < 10; i++) {
+                    String ip = lookupHost(VOIPSession.this.voipHost);
+                    if (TextUtils.isEmpty(ip)) {
+                        try {
+                            Thread.sleep((long) (0.05 * 1000));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        continue;
+                    } else {
+                        return ip;
+                    }
+                }
+                return "";
+            }
+
+            private String lookupHost(String host) {
+                try {
+                    InetAddress inetAddress = InetAddress.getByName(host);
+                    Log.i(TAG, "host name:" + inetAddress.getHostName() + " " + inetAddress.getHostAddress());
+                    return inetAddress.getHostAddress();
+                } catch (UnknownHostException exception) {
+                    exception.printStackTrace();
+                    return "";
+                }
+            }
+
+            @Override
+            protected void onPostExecute(String result) {
+                if (!TextUtils.isEmpty(result)) {
+                    VOIPSession.this.voipHostIP = result;
+                }
+            }
+        }.execute();
+    }
     public void dial() {
         state = VOIPSession.VOIP_DIALING;
         mode = SESSION_VOICE;
@@ -277,7 +330,7 @@ public class VOIPSession implements VOIPObserver {
                     this.localNatMap = new VOIPControl.NatPortMap();
                 }
                 if (this.relayIP == null) {
-                    this.relayIP = VOIPService.getInstance().getRelayIP();
+                    this.relayIP = this.voipHostIP;
                 }
                 sendConnected();
                 state = VOIPSession.VOIP_CONNECTED;
@@ -321,10 +374,10 @@ public class VOIPSession implements VOIPObserver {
                     try {
                         this.relayIP = InetAddress.getByAddress(BytePacket.unpackInetAddress(ctl.relayIP)).getHostAddress();
                     } catch (Exception e) {
-                        this.relayIP = VOIPService.getInstance().getRelayIP();
+                        this.relayIP = this.voipHostIP;
                     }
                 } else {
-                    this.relayIP = VOIPService.getInstance().getRelayIP();
+                    this.relayIP = this.voipHostIP;
                 }
 
                 state = VOIPSession.VOIP_CONNECTED;

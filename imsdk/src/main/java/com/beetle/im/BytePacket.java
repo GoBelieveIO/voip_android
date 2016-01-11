@@ -1,4 +1,4 @@
-package com.beetle.voip;
+package com.beetle.im;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -125,4 +125,5 @@ public class BytePacket {
         b2.order(ByteOrder.nativeOrder());
         return b2.getInt();
     }
+
 }

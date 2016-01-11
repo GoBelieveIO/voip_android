@@ -1,8 +1,8 @@
-package com.beetle.voip;
+package com.beetle.im;
 
 import android.os.Handler;
 import android.os.Message;
-
+import android.util.Log;
 import static android.os.SystemClock.uptimeMillis;
 
 /**
@@ -23,7 +23,7 @@ public abstract class Timer {
             }
 
             Timer.this.fire();
-            if (Timer.this.interval != -1 && Timer.this.active) {
+            if (Timer.this.interval != -1) {
                 long t = uptimeMillis() + Timer.this.interval;
                 boolean b = this.sendEmptyMessageAtTime(WHAT, t);
             }
