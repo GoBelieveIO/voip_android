@@ -19,6 +19,7 @@ import com.beetle.NativeWebRtcContextRegistry;
 import com.beetle.im.VOIPControl;
 import com.beetle.im.VOIPObserver;
 import com.beetle.voip.VOIPService;
+import com.beetle.voip.VOIPSession;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -64,7 +65,8 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                 Settings.Secure.ANDROID_ID);
 
         //app可以单独部署服务器，给予第三方应用更多的灵活性
-        //在开发阶段也可以配置成测试环境的地址 "sandbox.voipnode.gobelieve.io"
+        //在开发阶段也可以配置成测试环境的地址 "sandbox.voipnode.gobelieve.io", "sandbox.imnode.gobelieve.io"
+        VOIPSession.setVOIPHost("voipnode.gobelieve.io");
         String sdkHost = "imnode.gobelieve.io";
         VOIPService.getInstance().setHost(sdkHost);
         VOIPService.getInstance().registerConnectivityChangeReceiver(getApplicationContext());

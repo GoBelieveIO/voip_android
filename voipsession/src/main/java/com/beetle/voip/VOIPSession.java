@@ -40,9 +40,12 @@ public class VOIPSession implements VOIPObserver {
     private static final String TAG = "voip";
 
     public static final String STUN_SERVER = "stun.counterpath.net";
-    public static final String VOIP_HOST = "voipnode.gobelieve.io";
+    public static String VOIP_HOST = "voipnode.gobelieve.io";
     public static final int VOIP_PORT = 20002;
 
+    public static void setVOIPHost(String host) {
+        VOIP_HOST = host;
+    }
 
     private String voipHostIP;
     private String voipHost;
@@ -94,12 +97,9 @@ public class VOIPSession implements VOIPObserver {
         state = VOIP_ACCEPTING;
         this.currentUID = currentUID;
         this.peerUID = peerUID;
+        this.voipHost = VOIP_HOST;
         this.voipPort = VOIP_PORT;
         this.stunServer = STUN_SERVER;
-    }
-
-    public void setVoipHost(String voipHost) {
-        this.voipHost = voipHost;
     }
 
     //获取中转服务器IP地址
