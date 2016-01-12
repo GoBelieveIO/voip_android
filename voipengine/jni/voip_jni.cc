@@ -143,6 +143,16 @@ JOWW(void, VOIPEngine_switchCamera)(JNIEnv* jni, jobject j_voip) {
     voip->switchCamera();
 }
 
+JOWW(jboolean, VOIPEngine_isP2P)(JNIEnv* jni, jobject j_voip) {
+    VOIP *voip = GetNativeVOIP(jni, j_voip);
+    if (!voip) {
+        LOG("voip uninitialize");
+        return JNI_FALSE;
+    }
+    
+    return voip->isP2P() ? JNI_TRUE : JNI_FALSE;
+}
+
 
 jboolean GetIsCaller(JNIEnv* jni, jobject j_voip) {
   jclass cls = jni->GetObjectClass(j_voip);

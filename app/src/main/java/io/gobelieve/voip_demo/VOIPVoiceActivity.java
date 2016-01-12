@@ -94,7 +94,8 @@ public class VOIPVoiceActivity extends VOIPActivity {
             Log.w(TAG, "voip is inactive");
             return;
         }
-        Log.i(TAG, "stop stream");
+        boolean p2p = this.voip.isP2P();
+        Log.i(TAG, "stop stream p2p:" + p2p);
         this.voip.stop();
         this.voip.destroyNative();
         this.voip = null;

@@ -67,6 +67,7 @@ public class VOIPEngine {
 	public native void start();	
 	public native void stop();
     public native void switchCamera();
+    public native boolean isP2P();
 
     static {
         System.loadLibrary("voip");

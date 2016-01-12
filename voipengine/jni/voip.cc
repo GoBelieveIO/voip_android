@@ -585,6 +585,10 @@ public:
         voip->peerAddr.sin_port = htons(voip->peerPort);
     }
 
+    bool isP2P() {
+        return this->isPeerConnected;
+    }
+
 public:
     jobject j_voip;
 
