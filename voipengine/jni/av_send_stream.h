@@ -24,7 +24,7 @@ class WebRtcVcmFactory;
 
 class AVSendStream : public webrtc::VideoCaptureDataCallback {
 public:
-    AVSendStream(int32_t ssrc, int32_t rtxSSRC, VoiceTransport *t);
+    AVSendStream(int32_t ssrc, int32_t rtxSSRC, bool front, VoiceTransport *t);
     virtual ~AVSendStream();
 
     void start();

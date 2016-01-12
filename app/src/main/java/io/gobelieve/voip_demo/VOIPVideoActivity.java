@@ -11,8 +11,7 @@ import android.view.WindowManager;
 import android.widget.Switch;
 
 import com.beetle.VOIPEngine;
-import com.beetle.voip.BytePacket;
-import com.beetle.voip.Timer;
+import com.beetle.im.BytePacket;
 import com.beetle.voip.VOIPSession;
 
 import org.webrtc.RendererCommon;
@@ -106,7 +105,7 @@ public class VOIPVideoActivity extends VOIPActivity {
             e.printStackTrace();
         }
 
-        this.voip = new VOIPEngine(this.isCaller, token, selfUID, peerUID, relayIP, VOIPSession.VOIP_PORT,
+        this.voip = new VOIPEngine(this.isCaller, true, token, selfUID, peerUID, relayIP, VOIPSession.VOIP_PORT,
                 peerIP, peerPort, localRender.nativeVideoRenderer, remoteRender.nativeVideoRenderer);
         this.voip.initNative();
         this.voip.start();

@@ -25,18 +25,11 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.beetle.VOIPEngine;
+import com.beetle.im.Timer;
 import com.beetle.voip.VOIPService;
 import com.beetle.voip.VOIPSession;
 
-import com.beetle.voip.BytePacket;
-import com.beetle.voip.Timer;
 
-import org.webrtc.RendererCommon;
-import org.webrtc.VideoRenderer;
-import org.webrtc.VideoRendererGui;
-
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Date;
 
 

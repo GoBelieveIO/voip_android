@@ -269,7 +269,8 @@ private:
     
 public:
     VOIP(bool videoEnabled, int64_t selfUID, int64_t peerUID, const char *token, 
-         const char *hostIP, int voipPort, const char *peerIP, int peerPort, bool isCaller,
+         const char *hostIP, int voipPort, const char *peerIP, int peerPort, 
+         bool isCaller, bool isFrontCamera,
          webrtc::VideoRenderer *localRender, webrtc::VideoRenderer *remoteRender)
         :j_voip(NULL), _videoEnabled(videoEnabled),
         _sendStream(NULL), 
@@ -285,6 +286,7 @@ public:
         setPeerAddr(peerIP, peerPort);
 
         this->_isCaller = isCaller;
+        this->_isFrontCamera = isFrontCamera;
         this->localRender = localRender;
         this->remoteRender = remoteRender;
 
@@ -337,9 +339,9 @@ public:
         //caller(1:3:101)
         //callee(2:4:102)
         if (_isCaller) {
-            sendStream = new AVSendStream(1, 101, this);
+            sendStream = new AVSendStream(1, 101, _isFrontCamera, this);
         } else {
-            sendStream = new AVSendStream(2, 102, this);
+            sendStream = new AVSendStream(2, 102, _isFrontCamera, this);
         }
         sendStream->setCall(_call);
         sendStream->setRender(localRender);
@@ -598,6 +600,7 @@ private:
     AVReceiveStream *_recvStream;
 
     bool _isCaller;
+    bool _isFrontCamera;
 
     char token[256];
     int64_t peerUID;

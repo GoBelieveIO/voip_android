@@ -8,7 +8,7 @@ import android.view.Window;
 import android.view.WindowManager;
 
 import com.beetle.VOIPEngine;
-import com.beetle.voip.BytePacket;
+import com.beetle.im.BytePacket;
 import com.beetle.voip.VOIPSession;
 
 import java.net.InetAddress;
@@ -79,7 +79,7 @@ public class VOIPVoiceActivity extends VOIPActivity {
             e.printStackTrace();
         }
 
-        this.voip = new VOIPEngine(this.isCaller, token, selfUID, peerUID, relayIP, VOIPSession.VOIP_PORT,
+        this.voip = new VOIPEngine(this.isCaller, true, token, selfUID, peerUID, relayIP, VOIPSession.VOIP_PORT,
                 peerIP, peerPort);
         this.voip.initNative();
         this.voip.start();

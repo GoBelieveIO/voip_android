@@ -3,6 +3,7 @@ package com.beetle;
 public class VOIPEngine {
 	private long nativeVOIP;
     private boolean isCaller;
+    private boolean isFrontCamera;
     private String token;
     private long selfUID;
     private long peerUID;
@@ -15,9 +16,10 @@ public class VOIPEngine {
     private long localRender;
     private long remoteRender;
 
-    public VOIPEngine(boolean isCaller, String token, long selfUID, long peerUID,
+    public VOIPEngine(boolean isCaller, boolean isFrontCamera, String token, long selfUID, long peerUID,
                       String relayIP, int voipPort, String peerIP, int peerPort) {
         this.isCaller = isCaller;
+        this.isFrontCamera = isFrontCamera;
         this.token = token;
         this.selfUID = selfUID;
         this.peerUID = peerUID;
@@ -29,9 +31,10 @@ public class VOIPEngine {
     }
 
 
-    public VOIPEngine(boolean isCaller, String token, long selfUID, long peerUID,
+    public VOIPEngine(boolean isCaller, boolean isFrontCamera, String token, long selfUID, long peerUID,
                       String relayIP, int voipPort, String peerIP, int peerPort,
                       long localRender, long remoteRender) {
+        this.isFrontCamera = isFrontCamera;
         this.isCaller = isCaller;
         this.token = token;
         this.selfUID = selfUID;

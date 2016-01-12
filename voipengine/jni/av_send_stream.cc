@@ -108,10 +108,10 @@ public:
 #define ARRAY_SIZE(x) (static_cast<int>(sizeof(x) / sizeof(x[0])))
 
 
-AVSendStream::AVSendStream(int32_t ssrc, int32_t rtxSSRC, VoiceTransport *t):
+AVSendStream::AVSendStream(int32_t ssrc, int32_t rtxSSRC, bool front, VoiceTransport *t):
     voiceTransport(t), ssrc(ssrc), rtxSSRC(rtxSSRC),
     voiceChannel(-1), voiceChannelTransport(NULL), 
-    call_(NULL), stream_(NULL), encoder_(NULL), front_(true) {
+    call_(NULL), stream_(NULL), encoder_(NULL), front_(front) {
     factory_ = new WebRtcVcmFactory();
 }
 
@@ -125,10 +125,12 @@ void AVSendStream::sendKeyFrame() {
     }
 }
 void AVSendStream::switchCamera() {
-    module_->DeRegisterCaptureDataCallback();
-    module_->StopCapture();
-    module_->Release();
-    module_ = NULL;
+    if (module_ != NULL) {
+        module_->DeRegisterCaptureDataCallback();
+        module_->StopCapture();
+        module_->Release();
+        module_ = NULL;
+    }
 
     front_ = !front_;
     startCapture(front_);
