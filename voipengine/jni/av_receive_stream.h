@@ -34,6 +34,8 @@ private:
     webrtc::VideoRenderer *render_;
 
     int renderFrames_;
+    int frameWidth_;
+    int frameHeight_;
 
 private:
     void startAudioStream();

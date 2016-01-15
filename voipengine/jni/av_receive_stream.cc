@@ -71,7 +71,7 @@ AVReceiveStream::AVReceiveStream(int32_t lssrc, int32_t rssrc, int32_t rtxSSRC, 
     voiceTransport(t), localSSRC(lssrc), remoteSSRC(rssrc), rtxSSRC(rtxSSRC), 
     voiceChannel(-1), voiceChannelTransport(NULL),
     call_(NULL), stream_(NULL), audioStream_(NULL),
-    decoder_(NULL), renderFrames_(0) {
+    decoder_(NULL), renderFrames_(0), frameWidth_(0), frameHeight_(0) {
     
 }
 
@@ -187,8 +187,10 @@ void AVReceiveStream::RenderFrame(const webrtc::VideoFrame& video_frame,
     
     renderFrames_++;
 
-    if (renderFrames_ == 1) {
-        LOG("render frame:%d %d", video_frame.width(), video_frame.height());
+    if (video_frame.width() != frameWidth_ || video_frame.height() != frameHeight_) {
+        LOG("render frame:%d %d", video_frame.width(), video_frame.height());       
+        frameWidth_ = video_frame.width();
+        frameHeight_ = video_frame.height();
     }
 
     if (render_) {
