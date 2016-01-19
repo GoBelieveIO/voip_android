@@ -61,6 +61,7 @@ public class VOIPSession implements VOIPObserver {
     public VOIPControl.NatPortMap peerNatMap;
 
     private String relayIP;
+    private boolean refreshing;
 
     private int dialCount;
     private long dialBeginTimestamp;
@@ -100,6 +101,7 @@ public class VOIPSession implements VOIPObserver {
         this.voipHost = VOIP_HOST;
         this.voipPort = VOIP_PORT;
         this.stunServer = STUN_SERVER;
+        this.refreshing = false;
     }
 
     //获取中转服务器IP地址
@@ -182,6 +184,15 @@ public class VOIPSession implements VOIPObserver {
         };
         task.execute();
 
+
+        refreshHost();
+    }
+
+    private void refreshHost() {
+        if (!TextUtils.isEmpty(this.voipHostIP) || this.refreshing) {
+            return;
+        }
+        this.refreshing = true;
         //解析voip中专服务器的域名
         new AsyncTask<Void, Integer, String>() {
             @Override
@@ -218,9 +229,11 @@ public class VOIPSession implements VOIPObserver {
                 if (!TextUtils.isEmpty(result)) {
                     VOIPSession.this.voipHostIP = result;
                 }
+                VOIPSession.this.refreshing = false;
             }
         }.execute();
     }
+
     public void dial() {
         state = VOIPSession.VOIP_DIALING;
         mode = SESSION_VOICE;
@@ -441,12 +454,17 @@ public class VOIPSession implements VOIPObserver {
         }
         ctl.dialCount = this.dialCount + 1;
 
-        Log.i(TAG, "dial......");
-        boolean r = VOIPService.getInstance().sendVOIPControl(ctl);
-        if (r) {
-            this.dialCount = this.dialCount + 1;
+        if (!TextUtils.isEmpty(this.voipHostIP)) {
+            Log.i(TAG, "dial......");
+            boolean r = VOIPService.getInstance().sendVOIPControl(ctl);
+            if (r) {
+                this.dialCount = this.dialCount + 1;
+            } else {
+                Log.i(TAG, "dial fail");
+            }
         } else {
-            Log.i(TAG, "dial fail");
+            Log.i(TAG, "voip host ip is empty");
+            refreshHost();
         }
 
         long now = getNow();
