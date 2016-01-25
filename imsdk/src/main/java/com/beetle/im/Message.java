@@ -1,8 +1,6 @@
 package com.beetle.im;
 
 import android.util.Log;
-
-import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
@@ -26,6 +24,12 @@ class Command{
     public static final int MSG_PONG = 14;
     public static final int MSG_AUTH_TOKEN = 15;
     public static final int MSG_LOGIN_POINT = 16;
+    public static final int MSG_RT = 17;
+    public static final int MSG_ENTER_ROOM = 18;
+    public static final int MSG_LEAVE_ROOM = 19;
+    public static final int MSG_ROOM_IM = 20;
+    public static final int MSG_SYSTEM = 21;
+    public static final int MSG_CUSTOMER_SERVICE = 23;
 
     public static final int MSG_VOIP_CONTROL = 64;
 }
@@ -94,7 +98,7 @@ public class Message {
             pos += 4;
             try {
                 byte[] c = im.content.getBytes("UTF-8");
-                if (c.length + 32 > 64 * 1024) {
+                if (c.length + 24 >= 32 * 1024) {
                     Log.e("imservice", "packet buffer overflow");
                     return null;
                 }
@@ -157,6 +161,46 @@ public class Message {
                 return Arrays.copyOf(buf, HEAD_SIZE + 30);
             } else {
                 return Arrays.copyOf(buf, HEAD_SIZE + 20);
+            }
+        } else if (cmd == Command.MSG_CUSTOMER_SERVICE) {
+            CustomerMessage cs = (CustomerMessage) body;
+            BytePacket.writeInt64(cs.customer, buf, pos);
+            pos += 8;
+            BytePacket.writeInt64(cs.sender, buf, pos);
+            pos += 8;
+            BytePacket.writeInt64(cs.receiver, buf, pos);
+            pos += 8;
+            BytePacket.writeInt32(cs.timestamp, buf, pos);
+            pos += 4;
+            try {
+                byte[] c = cs.content.getBytes("UTF-8");
+                if (c.length + 28 >= 32 * 1024) {
+                    Log.e("imservice", "packet buffer overflow");
+                    return null;
+                }
+                System.arraycopy(c, 0, buf, pos, c.length);
+                return Arrays.copyOf(buf, HEAD_SIZE + 28 + c.length);
+            } catch (Exception e) {
+                Log.e("imservice", "encode utf8 error");
+                return null;
+            }
+        } else if (cmd == Command.MSG_RT) {
+            RTMessage rt = (RTMessage) body;
+            BytePacket.writeInt64(rt.sender, buf, pos);
+            pos += 8;
+            BytePacket.writeInt64(rt.receiver, buf, pos);
+            pos += 8;
+            try {
+                byte[] c = rt.content.getBytes("UTF-8");
+                if (c.length + 24 >= 32 * 1024) {
+                    Log.e("imservice", "packet buffer overflow");
+                    return null;
+                }
+                System.arraycopy(c, 0, buf, pos, c.length);
+                return Arrays.copyOf(buf, HEAD_SIZE + 16 + c.length);
+            } catch (Exception e) {
+                Log.e("imservice", "encode utf8 error");
+                return null;
             }
         }
         return null;
@@ -222,6 +266,13 @@ public class Message {
             } catch (Exception e) {
                 return false;
             }
+        } else if (cmd == Command.MSG_SYSTEM) {
+            try {
+                this.body = new String(data, pos, data.length - HEAD_SIZE, "UTF-8");
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
         } else if (cmd == Command.MSG_VOIP_CONTROL) {
             VOIPControl ctl = new VOIPControl();
             ctl.sender = BytePacket.readInt64(data, pos);
@@ -256,6 +307,36 @@ public class Message {
             }
             this.body = ctl;
             return true;
+        } else if (cmd == Command.MSG_CUSTOMER_SERVICE) {
+            CustomerMessage cs = new CustomerMessage();
+            cs.customer = BytePacket.readInt64(data, pos);
+            pos += 8;
+            cs.sender = BytePacket.readInt64(data, pos);
+            pos += 8;
+            cs.receiver = BytePacket.readInt64(data, pos);
+            pos += 8;
+            cs.timestamp = BytePacket.readInt32(data, pos);
+            pos += 4;
+            try {
+                cs.content = new String(data, pos, data.length - 28 - HEAD_SIZE, "UTF-8");
+                this.body = cs;
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        } else if (cmd == Command.MSG_RT) {
+            RTMessage rt = new RTMessage();
+            rt.sender = BytePacket.readInt64(data, pos);
+            pos += 8;
+            rt.receiver = BytePacket.readInt64(data, pos);
+            pos += 8;
+            try {
+                rt.content = new String(data, pos, data.length - pos, "UTF-8");
+                this.body = rt;
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
         } else {
             return true;
         }

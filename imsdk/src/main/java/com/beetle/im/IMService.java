@@ -65,11 +65,19 @@ public class IMService {
 
     PeerMessageHandler peerMessageHandler;
     GroupMessageHandler groupMessageHandler;
+    CustomerMessageHandler customerMessageHandler;
     ArrayList<IMServiceObserver> observers = new ArrayList<IMServiceObserver>();
+    ArrayList<LoginPointObserver> loginPointObservers = new ArrayList<LoginPointObserver>();
+    ArrayList<GroupMessageObserver> groupObservers = new ArrayList<GroupMessageObserver>();
+    ArrayList<PeerMessageObserver> peerObservers = new ArrayList<PeerMessageObserver>();
+    ArrayList<SystemMessageObserver> systemMessageObservers = new ArrayList<SystemMessageObserver>();
+    ArrayList<CustomerMessageObserver> customerServiceMessageObservers = new ArrayList<CustomerMessageObserver>();
     ArrayList<VOIPObserver> voipObservers = new ArrayList<VOIPObserver>();
+    ArrayList<RTMessageObserver> rtMessageObservers = new ArrayList<RTMessageObserver>();
 
     HashMap<Integer, IMMessage> peerMessages = new HashMap<Integer, IMMessage>();
     HashMap<Integer, IMMessage> groupMessages = new HashMap<Integer, IMMessage>();
+    HashMap<Integer, IMMessage> customerMessages = new HashMap<Integer, IMMessage>();
 
     private byte[] data;
 
@@ -159,6 +167,9 @@ public class IMService {
     public void setGroupMessageHandler(GroupMessageHandler handler) {
         this.groupMessageHandler = handler;
     }
+    public void setCustomerMessageHandler(CustomerMessageHandler handler) {
+        this.customerMessageHandler = handler;
+    }
 
     public void addObserver(IMServiceObserver ob) {
         if (observers.contains(ob)) {
@@ -169,6 +180,72 @@ public class IMService {
 
     public void removeObserver(IMServiceObserver ob) {
         observers.remove(ob);
+    }
+
+    public void addLoginPointObserver(LoginPointObserver ob) {
+        if (loginPointObservers.contains(ob)) {
+            return;
+        }
+        loginPointObservers.add(ob);
+    }
+
+    public void removeLoginPointObserver(LoginPointObserver ob) {
+        loginPointObservers.remove(ob);
+    }
+
+    public void addPeerObserver(PeerMessageObserver ob) {
+        if (peerObservers.contains(ob)) {
+            return;
+        }
+        peerObservers.add(ob);
+    }
+
+    public void removePeerObserver(PeerMessageObserver ob) {
+        peerObservers.remove(ob);
+    }
+
+    public void addGroupObserver(GroupMessageObserver ob) {
+        if (groupObservers.contains(ob)) {
+            return;
+        }
+        groupObservers.add(ob);
+    }
+
+    public void removeGroupObserver(GroupMessageObserver ob) {
+        groupObservers.remove(ob);
+    }
+
+    public void addSystemObserver(SystemMessageObserver ob) {
+        if (systemMessageObservers.contains(ob)) {
+            return;
+        }
+        systemMessageObservers.add(ob);
+    }
+
+    public void removeSystemObserver(SystemMessageObserver ob) {
+        systemMessageObservers.remove(ob);
+    }
+
+    public void addCustomerServiceObserver(CustomerMessageObserver ob) {
+        if (customerServiceMessageObservers.contains(ob)) {
+            return;
+        }
+        customerServiceMessageObservers.add(ob);
+    }
+
+    public void removeCustomerServiceObserver(CustomerMessageObserver ob) {
+        customerServiceMessageObservers.remove(ob);
+    }
+
+    public void addRTObserver(RTMessageObserver ob) {
+        if (rtMessageObservers.contains(ob)) {
+            return;
+        }
+        rtMessageObservers.add(ob);
+    }
+
+    public void removeRTObserver(RTMessageObserver ob){
+        rtMessageObservers.remove(ob);
     }
 
     public void pushVOIPObserver(VOIPObserver ob) {
@@ -274,6 +351,15 @@ public class IMService {
         }
         return false;
     }
+    public boolean isCustomerServiceMessageSending(long peer, int msgLocalID) {
+        for(Map.Entry<Integer, IMMessage> entry : customerMessages.entrySet()) {
+            IMMessage m = entry.getValue();
+            if (m.receiver == peer && m.msgLocalID == msgLocalID) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public boolean sendPeerMessage(IMMessage im) {
         Message msg = new Message();
@@ -296,6 +382,28 @@ public class IMService {
         }
 
         groupMessages.put(new Integer(msg.seq), im);
+        return true;
+    }
+
+    public boolean sendCustomerMessage(CustomerMessage im) {
+        Message msg = new Message();
+        msg.cmd = Command.MSG_CUSTOMER_SERVICE;
+        msg.body = im;
+        if (!sendMessage(msg)) {
+            return false;
+        }
+
+        customerMessages.put(new Integer(msg.seq), im);
+        return true;
+    }
+
+    public boolean sendRTMessage(RTMessage rt) {
+        Message msg = new Message();
+        msg.cmd = Command.MSG_RT;
+        msg.body = rt;
+        if (!sendMessage(msg)) {
+            return false;
+        }
         return true;
     }
 
@@ -558,6 +666,17 @@ public class IMService {
         }
         groupMessages.clear();
 
+        iter = customerMessages.entrySet().iterator();
+        while (iter.hasNext()) {
+            Map.Entry<Integer, IMMessage> entry = (Map.Entry<Integer, IMMessage>)iter.next();
+            IMMessage im = entry.getValue();
+            if (customerMessageHandler != null) {
+                customerMessageHandler.handleMessageFailure(im.msgLocalID, im.receiver);
+            }
+            publishCustomerServiceMessageFailure(im.msgLocalID, im.receiver);
+        }
+        customerMessages.clear();
+
         close();
     }
 
@@ -583,21 +702,69 @@ public class IMService {
             groupMessages.remove(seq);
             publishGroupMessageACK(im.msgLocalID, im.receiver);
         }
-    }
 
-    private void handlePeerACK(Message msg) {
-        return;
+        im = customerMessages.get(seq);
+        if (im != null) {
+            if (customerMessageHandler != null && !customerMessageHandler.handleMessageACK(im.msgLocalID, im.receiver)) {
+                Log.i(TAG, "handle customer service message ack fail");
+                return;
+            }
+            customerMessages.remove(seq);
+            publishCustomerServiceMessageACK(im.msgLocalID, im.receiver);
+        }
     }
 
     private void handleInputting(Message msg) {
         MessageInputing inputting = (MessageInputing)msg.body;
-        for (int i = 0; i < observers.size(); i++ ) {
-            IMServiceObserver ob = observers.get(i);
+        for (int i = 0; i < peerObservers.size(); i++ ) {
+            PeerMessageObserver ob = peerObservers.get(i);
             ob.onPeerInputting(inputting.sender);
         }
     }
 
+    private void handleSystemMessage(Message msg) {
+        String sys = (String)msg.body;
+        for (int i = 0; i < systemMessageObservers.size(); i++ ) {
+            SystemMessageObserver ob = systemMessageObservers.get(i);
+            ob.onSystemMessage(sys);
+        }
 
+        Message ack = new Message();
+        ack.cmd = Command.MSG_ACK;
+        ack.body = new Integer(msg.seq);
+        sendMessage(ack);
+    }
+
+    private void handleCustomerServiceMessage(Message msg) {
+        CustomerMessage cs = (CustomerMessage)msg.body;
+        if (customerMessageHandler != null && !customerMessageHandler.handleMessage(cs)) {
+            Log.i(TAG, "handle customer service message fail");
+            return;
+        }
+
+        publishCustomerServiceMessage(cs);
+
+        Message ack = new Message();
+        ack.cmd = Command.MSG_ACK;
+        ack.body = new Integer(msg.seq);
+        sendMessage(ack);
+
+        if (cs.sender == this.uid) {
+            if (customerMessageHandler != null && !customerMessageHandler.handleMessageACK(cs.msgLocalID, cs.receiver)) {
+                Log.w(TAG, "handle customer service message ack fail");
+                return;
+            }
+            publishCustomerServiceMessageACK(cs.msgLocalID, cs.receiver);
+        }
+    }
+
+    private void handleRTMessage(Message msg) {
+        RTMessage rt = (RTMessage)msg.body;
+        for (int i = 0; i < rtMessageObservers.size(); i++ ) {
+            RTMessageObserver ob = rtMessageObservers.get(i);
+            ob.onRTMessage(rt);
+        }
+    }
     private void handleVOIPControl(Message msg) {
         VOIPControl ctl = (VOIPControl)msg.body;
 
@@ -624,8 +791,6 @@ public class IMService {
             handleIMMessage(msg);
         } else if (msg.cmd == Command.MSG_ACK) {
             handleACK(msg);
-        } else if (msg.cmd == Command.MSG_PEER_ACK) {
-            handlePeerACK(msg);
         } else if (msg.cmd == Command.MSG_INPUTTING) {
             handleInputting(msg);
         } else if (msg.cmd == Command.MSG_PONG) {
@@ -636,8 +801,14 @@ public class IMService {
             handleGroupNotification(msg);
         } else if (msg.cmd == Command.MSG_LOGIN_POINT) {
             handleLoginPoint(msg);
+        } else if (msg.cmd == Command.MSG_SYSTEM) {
+            handleSystemMessage(msg);
+        } else if (msg.cmd == Command.MSG_RT) {
+            handleRTMessage(msg);
         } else if (msg.cmd == Command.MSG_VOIP_CONTROL) {
             handleVOIPControl(msg);
+        } else if (msg.cmd == Command.MSG_CUSTOMER_SERVICE) {
+            handleCustomerServiceMessage(msg);
         } else {
             Log.i(TAG, "unknown message cmd:"+msg.cmd);
         }
@@ -718,6 +889,10 @@ public class IMService {
         this.seq++;
         msg.seq = this.seq;
         byte[] p = msg.pack();
+        if (p.length >= 32*1024) {
+            Log.e(TAG, "message length overflow");
+            return false;
+        }
         int l = p.length - Message.HEAD_SIZE;
         byte[] buf = new byte[p.length + 4];
         BytePacket.writeInt32(l, buf, 0);
@@ -727,51 +902,51 @@ public class IMService {
     }
 
     private void publishGroupNotification(String notification) {
-        for (int i = 0; i < observers.size(); i++ ) {
-            IMServiceObserver ob = observers.get(i);
+        for (int i = 0; i < groupObservers.size(); i++ ) {
+            GroupMessageObserver ob = groupObservers.get(i);
             ob.onGroupNotification(notification);
         }
     }
 
     private void publishGroupMessage(IMMessage msg) {
-        for (int i = 0; i < observers.size(); i++ ) {
-            IMServiceObserver ob = observers.get(i);
+        for (int i = 0; i < groupObservers.size(); i++ ) {
+            GroupMessageObserver ob = groupObservers.get(i);
             ob.onGroupMessage(msg);
         }
     }
 
     private void publishGroupMessageACK(int msgLocalID, long gid) {
-        for (int i = 0; i < observers.size(); i++ ) {
-            IMServiceObserver ob = observers.get(i);
+        for (int i = 0; i < groupObservers.size(); i++ ) {
+            GroupMessageObserver ob = groupObservers.get(i);
             ob.onGroupMessageACK(msgLocalID, gid);
         }
     }
 
 
     private void publishGroupMessageFailure(int msgLocalID, long gid) {
-        for (int i = 0; i < observers.size(); i++ ) {
-            IMServiceObserver ob = observers.get(i);
+        for (int i = 0; i < groupObservers.size(); i++ ) {
+            GroupMessageObserver ob = groupObservers.get(i);
             ob.onGroupMessageFailure(msgLocalID, gid);
         }
     }
 
     private void publishPeerMessage(IMMessage msg) {
-        for (int i = 0; i < observers.size(); i++ ) {
-            IMServiceObserver ob = observers.get(i);
+        for (int i = 0; i < peerObservers.size(); i++ ) {
+            PeerMessageObserver ob = peerObservers.get(i);
             ob.onPeerMessage(msg);
         }
     }
 
     private void publishPeerMessageACK(int msgLocalID, long uid) {
-        for (int i = 0; i < observers.size(); i++ ) {
-            IMServiceObserver ob = observers.get(i);
+        for (int i = 0; i < peerObservers.size(); i++ ) {
+            PeerMessageObserver ob = peerObservers.get(i);
             ob.onPeerMessageACK(msgLocalID, uid);
         }
     }
 
     private void publishPeerMessageFailure(int msgLocalID, long uid) {
-        for (int i = 0; i < observers.size(); i++ ) {
-            IMServiceObserver ob = observers.get(i);
+        for (int i = 0; i < peerObservers.size(); i++ ) {
+            PeerMessageObserver ob = peerObservers.get(i);
             ob.onPeerMessageFailure(msgLocalID, uid);
         }
     }
@@ -784,9 +959,31 @@ public class IMService {
     }
 
     private void publishLoginPoint(final LoginPoint lp) {
-        for (int i = 0; i < observers.size(); i++) {
-            IMServiceObserver ob = observers.get(i);
+        for (int i = 0; i < loginPointObservers.size(); i++) {
+            LoginPointObserver ob = loginPointObservers.get(i);
             ob.onLoginPoint(lp);
+        }
+    }
+
+    private void publishCustomerServiceMessage(CustomerMessage cs) {
+        for (int i = 0; i < customerServiceMessageObservers.size(); i++) {
+            CustomerMessageObserver ob = customerServiceMessageObservers.get(i);
+            ob.onCustomerMessage(cs);
+        }
+    }
+
+    private void publishCustomerServiceMessageACK(int msgLocalID, long uid) {
+        for (int i = 0; i < customerServiceMessageObservers.size(); i++) {
+            CustomerMessageObserver ob = customerServiceMessageObservers.get(i);
+            ob.onCustomerMessageACK(msgLocalID, uid);
+        }
+    }
+
+
+    private void publishCustomerServiceMessageFailure(int msgLocalID, long uid) {
+        for (int i = 0; i < customerServiceMessageObservers.size(); i++) {
+            CustomerMessageObserver ob = customerServiceMessageObservers.get(i);
+            ob.onCustomerMessageFailure(msgLocalID, uid);
         }
     }
 }
