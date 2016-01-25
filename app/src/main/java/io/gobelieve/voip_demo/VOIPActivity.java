@@ -25,6 +25,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.beetle.VOIPEngine;
+import com.beetle.im.RTMessage;
+import com.beetle.im.RTMessageObserver;
 import com.beetle.im.Timer;
 import com.beetle.voip.VOIPService;
 import com.beetle.voip.VOIPSession;
@@ -35,7 +37,7 @@ import java.util.Date;
 
 import static android.os.SystemClock.uptimeMillis;
 
-public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObserver {
+public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObserver, RTMessageObserver {
 
     protected static final String TAG = "face";
 
@@ -57,6 +59,8 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
     protected VOIPEngine voip;
     private int duration;
     private Timer durationTimer;
+    //探测对方是否在线
+    private Timer pingTimer;
 
     private MediaPlayer player;
 
@@ -168,11 +172,26 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
         voipSession.holePunch();
 
         VOIPService.getInstance().pushVOIPObserver(this.voipSession);
+        VOIPService.getInstance().addRTObserver(this);
 
         if (isCaller) {
             handUpButton.setVisibility(View.VISIBLE);
             acceptButton.setVisibility(View.GONE);
             refuseButton.setVisibility(View.GONE);
+
+            this.pingTimer = new Timer() {
+                @Override
+                protected void fire() {
+                    RTMessage rt = new RTMessage();
+                    rt.sender = currentUID;
+                    rt.receiver = peerUID;
+                    //自定义格式
+                    rt.content = "ping";
+                    VOIPService.getInstance().sendRTMessage(rt);
+                }
+            };
+            this.pingTimer.setTimer(uptimeMillis(), 1000);
+            this.pingTimer.resume();
 
             dial();
 
@@ -233,6 +252,11 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
     @Override
     protected void onDestroy () {
         Log.i(TAG, "voip activity on destroy");
+        if (pingTimer != null) {
+            pingTimer.suspend();
+            pingTimer = null;
+        }
+        VOIPService.getInstance().removeRTObserver(this);
         VOIPService.getInstance().popVOIPObserver(this.voipSession);
         super.onDestroy();
     }
@@ -307,7 +331,25 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
         finish();
     }
 
-
+    @Override
+    public void onRTMessage(RTMessage rt) {
+        if (rt.sender == peerUID) {
+            if (rt.content.equals("pong")) {
+                //对方在线
+                Log.i(TAG, "对方在线");
+                if (pingTimer != null) {
+                    this.pingTimer.suspend();
+                    this.pingTimer = null;
+                }
+            } else if (rt.content.equals("ping")) {
+                RTMessage pong = new RTMessage();
+                pong.sender = this.currentUID;
+                pong.receiver = this.peerUID;
+                pong.content = "pong";
+                VOIPService.getInstance().sendRTMessage(pong);
+            }
+        }
+    }
 
     private boolean getHeadphoneStatus() {
         AudioManager audioManager = (AudioManager)getSystemService(AUDIO_SERVICE);
