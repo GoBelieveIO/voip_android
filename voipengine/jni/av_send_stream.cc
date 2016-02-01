@@ -119,11 +119,6 @@ AVSendStream::~AVSendStream() {
     delete factory_;
 }
 
-void AVSendStream::sendKeyFrame() {
-    if (stream_) {
-        stream_->encoder()->SendKeyFrame();
-    }
-}
 void AVSendStream::switchCamera() {
     if (module_ != NULL) {
         module_->DeRegisterCaptureDataCallback();

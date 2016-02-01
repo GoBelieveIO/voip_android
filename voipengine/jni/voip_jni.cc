@@ -54,16 +54,16 @@ namespace webrtc {
     class VideoRenderer;
 }
 
-VOIP* GetNativeVOIP(JNIEnv* jni, jobject j_voip) ;
+static VOIP* GetNativeVOIP(JNIEnv* jni, jobject j_voip) ;
 
-void SetNativeVOIP(JNIEnv *jni, jobject j_voip, VOIP *voip) ;
+static void SetNativeVOIP(JNIEnv *jni, jobject j_voip, VOIP *voip) ;
 
-jstring GetToken(JNIEnv* jni, jobject j_voip);
-jboolean GetIsCaller(JNIEnv* jni, jobject j_voip);
-jboolean GetIsFrontCamera(JNIEnv* jni, jobject j_voip);
+static jstring GetToken(JNIEnv* jni, jobject j_voip);
+static jboolean GetIsCaller(JNIEnv* jni, jobject j_voip);
+static jboolean GetIsFrontCamera(JNIEnv* jni, jobject j_voip);
 
-webrtc::VideoRenderer* GetLocalRender(JNIEnv* jni, jobject j_voip);
-webrtc::VideoRenderer* GetRemoteRender(JNIEnv* jni, jobject j_voip);
+static webrtc::VideoRenderer* GetLocalRender(JNIEnv* jni, jobject j_voip);
+static webrtc::VideoRenderer* GetRemoteRender(JNIEnv* jni, jobject j_voip);
 
 #include "voip.cc"
 
@@ -154,49 +154,49 @@ JOWW(jboolean, VOIPEngine_isP2P)(JNIEnv* jni, jobject j_voip) {
 }
 
 
-jboolean GetIsCaller(JNIEnv* jni, jobject j_voip) {
+static jboolean GetIsCaller(JNIEnv* jni, jobject j_voip) {
   jclass cls = jni->GetObjectClass(j_voip);
   jfieldID fieldid = jni->GetFieldID(cls, "isCaller", "Z");
   jboolean isCaller = jni->GetBooleanField(j_voip, fieldid);
   return isCaller;
 }
 
-jboolean GetIsFrontCamera(JNIEnv* jni, jobject j_voip) {
+static jboolean GetIsFrontCamera(JNIEnv* jni, jobject j_voip) {
   jclass cls = jni->GetObjectClass(j_voip);
   jfieldID fieldid = jni->GetFieldID(cls, "isFrontCamera", "Z");
   jboolean isFrontCamera = jni->GetBooleanField(j_voip, fieldid);
   return isFrontCamera;
 }
 
-webrtc::VideoRenderer* GetLocalRender(JNIEnv* jni, jobject j_voip) {
+static webrtc::VideoRenderer* GetLocalRender(JNIEnv* jni, jobject j_voip) {
   jclass cls = jni->GetObjectClass(j_voip);
   jfieldID fieldid = jni->GetFieldID(cls, "localRender", "J");
   jlong j_p = jni->GetLongField(j_voip, fieldid);
   return reinterpret_cast<webrtc::VideoRenderer*>(j_p);
 }
 
-webrtc::VideoRenderer* GetRemoteRender(JNIEnv* jni, jobject j_voip) {
+static webrtc::VideoRenderer* GetRemoteRender(JNIEnv* jni, jobject j_voip) {
   jclass cls = jni->GetObjectClass(j_voip);
   jfieldID fieldid = jni->GetFieldID(cls, "remoteRender", "J");
   jlong j_p = jni->GetLongField(j_voip, fieldid);
   return reinterpret_cast<webrtc::VideoRenderer*>(j_p);
 }
 
-jstring GetToken(JNIEnv* jni, jobject j_voip) {
+static jstring GetToken(JNIEnv* jni, jobject j_voip) {
   jclass cls = jni->GetObjectClass(j_voip);
   jfieldID fieldid = jni->GetFieldID(cls, "token", "Ljava/lang/String;");
   jstring j_token = (jstring)jni->GetObjectField(j_voip, fieldid);
   return j_token;
 }
 
-VOIP* GetNativeVOIP(JNIEnv* jni, jobject j_voip) {
+static VOIP* GetNativeVOIP(JNIEnv* jni, jobject j_voip) {
   jclass cls = jni->GetObjectClass(j_voip);
   jfieldID fieldid = jni->GetFieldID(cls, "nativeVOIP", "J");
   jlong j_p = jni->GetLongField(j_voip, fieldid);
   return reinterpret_cast<VOIP*>(j_p);
 }
 
-void SetNativeVOIP(JNIEnv *jni, jobject j_voip, VOIP *voip) {
+static void SetNativeVOIP(JNIEnv *jni, jobject j_voip, VOIP *voip) {
     jclass cls = jni->GetObjectClass(j_voip);
     jfieldID fieldid = jni->GetFieldID(cls, "nativeVOIP", "J");
     jni->SetLongField(j_voip, fieldid, (long)voip);

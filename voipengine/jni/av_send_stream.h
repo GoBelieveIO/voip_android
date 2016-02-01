@@ -42,8 +42,6 @@ public:
         render_ = render;
     }
 
-    void sendKeyFrame();
-
     void switchCamera();
 
     //implement VideoCaptureDataCallback

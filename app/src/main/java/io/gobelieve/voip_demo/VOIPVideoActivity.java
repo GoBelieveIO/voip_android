@@ -10,6 +10,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Switch;
 
+import com.beetle.VOIPCapture;
 import com.beetle.VOIPEngine;
 import com.beetle.im.BytePacket;
 import com.beetle.voip.VOIPSession;
@@ -31,6 +32,7 @@ public class VOIPVideoActivity extends VOIPActivity {
     private VideoRenderer localRender;
     private VideoRenderer remoteRender;
 
+    private VOIPCapture capture;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +53,11 @@ public class VOIPVideoActivity extends VOIPActivity {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        capture = new VOIPCapture(true, remoteRender.nativeVideoRenderer);
+        capture.nativeInit();
+        capture.startCapture();
+
         super.onCreate(savedInstanceState);
 
     }
@@ -61,6 +68,12 @@ public class VOIPVideoActivity extends VOIPActivity {
 
     protected void startStream() {
         super.startStream();
+
+        if (capture != null) {
+            capture.stopCapture();
+            capture.destroyNative();
+            capture = null;
+        }
 
         if (this.voip != null) {
             Log.w(TAG, "voip is active");
@@ -143,6 +156,11 @@ public class VOIPVideoActivity extends VOIPActivity {
         if (this.voip != null) {
             Log.e(TAG, "voip is not null");
             System.exit(1);
+        }
+        if (capture != null) {
+            capture.stopCapture();
+            capture.destroyNative();
+            capture = null;
         }
         VideoRendererGui.dispose();
         super.onDestroy();
