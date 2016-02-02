@@ -75,6 +75,7 @@ public class VOIPVideoActivity extends VOIPActivity {
             capture = null;
         }
 
+
         if (this.voip != null) {
             Log.w(TAG, "voip is active");
             return;
@@ -132,6 +133,8 @@ public class VOIPVideoActivity extends VOIPActivity {
 
     protected void stopStream() {
         super.stopStream();
+
+
         if (this.voip == null) {
             Log.w(TAG, "voip is inactive");
             return;

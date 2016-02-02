@@ -16,6 +16,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.beetle.NativeWebRtcContextRegistry;
+import com.beetle.VOIPCommand;
 import com.beetle.im.VOIPControl;
 import com.beetle.im.VOIPObserver;
 import com.beetle.voip.VOIPService;
@@ -298,7 +299,8 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
         }
     }
     public void onVOIPControl(VOIPControl ctl) {
-        if (ctl.cmd == VOIPControl.VOIP_COMMAND_DIAL) {
+        VOIPCommand command = new VOIPCommand(ctl.content);
+        if (command.cmd == VOIPCommand.VOIP_COMMAND_DIAL) {
             if (ctl.sender == peerUID) {
                 dialog.dismiss();
 
@@ -311,7 +313,7 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                 intent.putExtra("is_caller", false);
                 startActivity(intent);
             }
-        } else if (ctl.cmd == VOIPControl.VOIP_COMMAND_DIAL_VIDEO) {
+        } else if (command.cmd == VOIPCommand.VOIP_COMMAND_DIAL_VIDEO) {
             if (ctl.sender == peerUID) {
                 dialog.dismiss();
 
