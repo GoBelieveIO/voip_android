@@ -4,7 +4,7 @@ import android.os.AsyncTask;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.beetle.VOIPCommand;
+import com.beetle.voip.VOIPCommand;
 import com.beetle.im.BytePacket;
 import com.beetle.im.Timer;
 import com.beetle.im.VOIPControl;

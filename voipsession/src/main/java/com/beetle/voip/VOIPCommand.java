@@ -1,4 +1,4 @@
-package com.beetle;
+package com.beetle.voip;
 
 import com.beetle.im.BytePacket;
 
