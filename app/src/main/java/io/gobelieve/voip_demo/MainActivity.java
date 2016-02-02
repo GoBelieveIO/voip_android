@@ -16,7 +16,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.beetle.NativeWebRtcContextRegistry;
-import com.beetle.VOIPCommand;
+import com.beetle.voip.VOIPCommand;
 import com.beetle.im.VOIPControl;
 import com.beetle.im.VOIPObserver;
 import com.beetle.voip.VOIPService;
