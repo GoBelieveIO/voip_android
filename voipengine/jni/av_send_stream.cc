@@ -91,131 +91,22 @@ const int kDefaultVideoMaxFramerate = 30;
 static const int kDefaultQpMax = 56;
 
 
-class WebRtcVcmFactory {
-public:
-    webrtc::VideoCaptureModule* Create(int id, const char* device) {
-        return webrtc::VideoCaptureFactory::Create(id, device);
-    }
-    webrtc::VideoCaptureModule::DeviceInfo* CreateDeviceInfo(int id) {
-        LOG("create device info");
-        return webrtc::VideoCaptureFactory::CreateDeviceInfo(id);
-    }
-    void DestroyDeviceInfo(webrtc::VideoCaptureModule::DeviceInfo* info) {
-        delete info;
-    }
-};
-
-#define ARRAY_SIZE(x) (static_cast<int>(sizeof(x) / sizeof(x[0])))
-
-
-AVSendStream::AVSendStream(int32_t ssrc, int32_t rtxSSRC, bool front, VoiceTransport *t):
+AVSendStream::AVSendStream(int32_t ssrc, int32_t rtxSSRC, VoiceTransport *t):
     voiceTransport(t), ssrc(ssrc), rtxSSRC(rtxSSRC),
     voiceChannel(-1), voiceChannelTransport(NULL), 
-    call_(NULL), stream_(NULL), encoder_(NULL), front_(front) {
-    factory_ = new WebRtcVcmFactory();
+    call_(NULL), stream_(NULL), encoder_(NULL) {
+
 }
 
 AVSendStream::~AVSendStream() {
-    delete factory_;
+
 }
 
-void AVSendStream::switchCamera() {
-    if (module_ != NULL) {
-        module_->DeRegisterCaptureDataCallback();
-        module_->StopCapture();
-        module_->Release();
-        module_ = NULL;
-    }
 
-    front_ = !front_;
-    startCapture(front_);
-}
-
-void AVSendStream::startCapture(bool front) {
-    webrtc::VideoCaptureModule::DeviceInfo* info = factory_->CreateDeviceInfo(0);
-    if (!info) {
-        return;
-    }
-
-    LOG("after create device info");
-    int num_cams = info->NumberOfDevices();
-    LOG("num cams:%d", num_cams);
-
-    char vcm_id[256];
-    bool found = false;
-    for (int index = 0; index < num_cams; ++index) {
-        char vcm_name[256] = {0};
-        if (info->GetDeviceName(index, vcm_name, ARRAY_SIZE(vcm_name),
-                                vcm_id, ARRAY_SIZE(vcm_id)) != -1) {
-                
-            LOG("vcm name:%s", vcm_name);
-            //"Facing back" or "Facing front"
-            if (front && strstr(vcm_name, "Facing front") != NULL) {
-                found = true;
-                break;
-            } else if (!front && strstr(vcm_name, "Facing back") != NULL) {
-                found = true;
-                break;
-            }
-        }
-    }
-        
-    if (!found) {
-        LOG("Failed to find capturer");
-        factory_->DestroyDeviceInfo(info);
-        return;
-    }
-        
-    webrtc::VideoCaptureCapability best_cap;
-    best_cap.width = WIDTH;
-    best_cap.height = HEIGHT;
-    best_cap.maxFPS = FPS;
-    best_cap.rawType = webrtc::kVideoNV21;
-
-    int diff_area = INT_MAX;
-
-    int32_t num_caps = info->NumberOfCapabilities(vcm_id);
-    for (int32_t i = 0; i < num_caps; ++i) {
-        webrtc::VideoCaptureCapability cap;
-        if (info->GetCapability(vcm_id, i, cap) != -1) {
-            LOG("cap width:%d height:%d raw type:%d max fps:%d", cap.width, cap.height, cap.rawType, cap.maxFPS);
-        }
-
-        int diff = abs(WIDTH*HEIGHT - cap.width*cap.height);
-        if (diff < diff_area) {
-            diff_area = diff;
-            best_cap = cap;
-        }
-    }
-    factory_->DestroyDeviceInfo(info);
-    LOG("best cap width:%d height:%d raw type:%d max fps:%d", 
-        best_cap.width, best_cap.height, best_cap.rawType, best_cap.maxFPS);
-        
-    module_ = factory_->Create(0, vcm_id);
-    if (!module_) {
-        LOG("Failed to create capturer");
-        return;
-    }
-        
-    // It is safe to change member attributes now.
-    module_->AddRef();
-
-
-    module_->RegisterCaptureDataCallback(*this);
-    if (module_->StartCapture(best_cap) != 0) {
-        module_->DeRegisterCaptureDataCallback();
-        return;
-    }
-}
 
 void AVSendStream::start() {
-
     captured_frames_ = 0;
-    
-    startCapture(front_);
-
     startSendStream();
-
     startAudioStream();
 }
 
@@ -366,11 +257,6 @@ void AVSendStream::startSendStream() {
 }
 
 void AVSendStream::stop() {
-    module_->DeRegisterCaptureDataCallback();
-    module_->StopCapture();
-    module_->Release();
-    module_ = NULL;
-
     stream_->Stop();
     call_->DestroyVideoSendStream(stream_);
     stream_ = NULL;
@@ -401,10 +287,6 @@ void AVSendStream::OnIncomingCapturedFrame(const int32_t id,
     if (stream_ && captured_frames_%2 == 0) {
         webrtc::VideoCaptureInput *input = stream_->Input();
         input->IncomingCapturedFrame(frame);
-    }
-
-    if (render_) {
-        render_->RenderFrame(frame, 0);
     }
 }
 

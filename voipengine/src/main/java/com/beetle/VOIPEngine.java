@@ -66,6 +66,8 @@ public class VOIPEngine {
 
 	public native void start();	
 	public native void stop();
+    public native void startCapture();
+    public native void stopCapture();
     public native void switchCamera();
     public native boolean isP2P();
 

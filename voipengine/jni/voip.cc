@@ -7,7 +7,7 @@
 #include "av_receive_stream.h"
 #include "audio_send_stream.h"
 #include "audio_receive_stream.h"
-
+#include "voip_capture.h"
 #include "AVTransport.h"
 #include <list>
 
@@ -31,7 +31,8 @@ public:
 
 class VOIP : public VoiceTransport, 
              public webrtc::newapi::Transport, 
-             public webrtc::LoadObserver {
+             public webrtc::LoadObserver,
+             public VOIPCaptureDataCallback {
 public:
     virtual int sendRTPPacketA(const void*data, int length) {
         //LOG("send rtp packet:%d", length);
@@ -276,7 +277,7 @@ public:
         _sendStream(NULL), 
         _recvStream(NULL), _is_active(false),
         udpFD(-1), beginTime(0), isPeerConnected(false), 
-        isPeerNoHeader(false), isAuth(false) {
+         isPeerNoHeader(false), isAuth(false),_voipCapture(NULL) {
         
         this->selfUID = selfUID;
         this->peerUID = peerUID;
@@ -294,7 +295,7 @@ public:
         pthread_cond_init(&_cond, NULL);
     }
 
-    ~VOIP() {
+    virtual ~VOIP() {
         pthread_mutex_destroy(&_mutex);
         pthread_cond_destroy(&_cond);
     }
@@ -303,6 +304,30 @@ public:
         strcpy(this->token, token);
     }
 
+    void startCapture() {
+        if (_voipCapture != NULL) {
+            return;
+        }
+        _voipCapture = new VOIPCapture(localRender, _isFrontCamera);
+        _voipCapture->setCallback(this);
+        _voipCapture->startCapture();
+    }
+
+    void stopCapture() {
+        if (_voipCapture == NULL) {
+            return;
+        }
+        _voipCapture->stopCapture();
+        delete _voipCapture;
+        _voipCapture = NULL;
+    }
+
+    void switchCamera() {
+        if (_voipCapture != NULL) {
+            _voipCapture->switchCamera();
+        }
+    }
+    
     void startAudioStream() {
         AudioSendStream *sendStream = new AudioSendStream(this);
         sendStream->start();
@@ -313,10 +338,13 @@ public:
         _audioSendStream = sendStream;
         _audioRecvStream = recvStream;
     }
+
     void startAVStream() {
         if (_sendStream||_recvStream) {
             return;
         }
+
+        startCapture();
 
         WebRTC *rtc = WebRTC::sharedWebRTC();
         int error = 0;
@@ -339,12 +367,11 @@ public:
         //caller(1:3:101)
         //callee(2:4:102)
         if (_isCaller) {
-            sendStream = new AVSendStream(1, 101, _isFrontCamera, this);
+            sendStream = new AVSendStream(1, 101, this);
         } else {
-            sendStream = new AVSendStream(2, 102, _isFrontCamera, this);
+            sendStream = new AVSendStream(2, 102, this);
         }
         sendStream->setCall(_call);
-        sendStream->setRender(localRender);
 
         sendStream->start();
 
@@ -381,10 +408,9 @@ public:
 
         beginTime = getNow();
     }
-
-
   
     void stopAVStream() {
+        stopCapture();
         if (_sendStream) {
             _sendStream->stop();
             delete _sendStream;
@@ -436,11 +462,6 @@ public:
         _packets.erase(_packets.begin(), _packets.end());
     }
 
-    void switchCamera() {
-        if (_sendStream) {
-            _sendStream->switchCamera();
-        }
-    }
 
     int sock_nonblock(int fd, int set) {
         int r;
@@ -564,6 +585,12 @@ public:
         }
     }
 
+    virtual void onCapturedFrame(const webrtc::VideoFrame& videoFrame) {
+        if (_sendStream) {
+            _sendStream->OnIncomingCapturedFrame(0, videoFrame);
+        }
+    }
+
  private:
 
     unsigned long getNow() {
@@ -634,4 +661,6 @@ private:
     pthread_cond_t _cond;
 
     std::vector<VOIPData*> _packets;
+
+    VOIPCapture *_voipCapture;
 };

@@ -13,10 +13,20 @@ namespace webrtc {
     class VideoRenderer;
 }
 
+class VOIPCaptureDataCallback {
+public:
+    virtual  ~VOIPCaptureDataCallback() {}
+    virtual void onCapturedFrame(const webrtc::VideoFrame& videoFrame) = 0;
+};
+
 class VOIPCapture : public webrtc::VideoCaptureDataCallback {
 public:
     VOIPCapture(webrtc::VideoRenderer *render, bool front);
     virtual ~VOIPCapture();
+
+    void setCallback(VOIPCaptureDataCallback *callback) {
+        callback_ = callback;
+    }
 
     void switchCamera();
     void startCapture();
@@ -34,5 +44,6 @@ private:
     int captured_frames_;
     bool front_;    
     webrtc::VideoRenderer *render_;
+    VOIPCaptureDataCallback *callback_;
 };
 #endif

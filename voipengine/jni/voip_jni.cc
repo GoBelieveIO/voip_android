@@ -133,6 +133,27 @@ JOWW(void, VOIPEngine_stop)(JNIEnv* jni, jobject j_voip) {
     voip->stop();
 }
 
+JOWW(void, VOIPEngine_startCapture)(JNIEnv* jni, jobject j_voip) {
+    VOIP *voip = GetNativeVOIP(jni, j_voip);
+    if (!voip) {
+        LOG("voip uninitialize");
+        return;
+    }
+    LOG("voip start capture");
+    voip->startCapture();
+}
+
+JOWW(void, VOIPEngine_stopCapture)(JNIEnv* jni, jobject j_voip) {
+    VOIP *voip = GetNativeVOIP(jni, j_voip);
+    if (!voip) {
+        LOG("voip uninitialize");
+        return;
+    }
+    LOG("voip stop capture");
+    voip->stopCapture();
+}
+
+
 JOWW(void, VOIPEngine_switchCamera)(JNIEnv* jni, jobject j_voip) {
     VOIP *voip = GetNativeVOIP(jni, j_voip);
     if (!voip) {

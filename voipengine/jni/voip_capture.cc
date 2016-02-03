@@ -53,7 +53,8 @@
 
 VOIPCapture::VOIPCapture(webrtc::VideoRenderer *render, bool front):
     module_(NULL), captured_frames_(0), 
-    front_(front), render_(render) {
+    front_(front), render_(render), 
+    callback_(NULL) {
     
 }
 
@@ -166,6 +167,10 @@ void VOIPCapture::OnIncomingCapturedFrame(const int32_t id,
 
     if (render_) {
         render_->RenderFrame(frame, 0);
+    }
+
+    if (callback_) {
+        callback_->onCapturedFrame(frame);
     }
 }
 
