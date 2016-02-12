@@ -17,6 +17,10 @@ android {
         targetCompatibility JavaVersion.VERSION_1_7
     }
     buildTypes {
+        debug {
+            jniDebuggable true
+        }
+
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -25,7 +29,8 @@ android {
 
     sourceSets {
         main {
-            jniLibs.srcDirs = ['libs']
+            jni.srcDirs = []
+            jniLibs.srcDirs = ['src/main/libs']
         }
     }
 
