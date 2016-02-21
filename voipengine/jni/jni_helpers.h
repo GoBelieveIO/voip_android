@@ -1,54 +1,38 @@
 /*
- * libjingle
- * Copyright 2015 Google Inc.
+ *  Copyright 2015 The WebRTC project authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 // This file contain convenience functions and classes for JNI.
 // Before using any of the methods, InitGlobalJniVariables must be called.
 
-#ifndef TALK_APP_WEBRTC_JAVA_JNI_JNI_HELPERS_H_
-#define TALK_APP_WEBRTC_JAVA_JNI_JNI_HELPERS_H_
+#ifndef WEBRTC_API_JAVA_JNI_JNI_HELPERS_H_
+#define WEBRTC_API_JAVA_JNI_JNI_HELPERS_H_
 
 #include <jni.h>
 #include <string>
 
 #include "webrtc/base/checks.h"
 
+#define CHECK(condition) RTC_CHECK(condition)
+
 // Abort the process if |jni| has a Java exception pending.
 // This macros uses the comma operator to execute ExceptionDescribe
 // and ExceptionClear ignoring their return values and sending ""
 // to the error stream.
-#define CHECK_EXCEPTION(jni)    \
-  CHECK(!jni->ExceptionCheck()) \
+#define CHECK_EXCEPTION(jni)        \
+  RTC_CHECK(!jni->ExceptionCheck()) \
       << (jni->ExceptionDescribe(), jni->ExceptionClear(), "")
 
 // Helper that calls ptr->Release() and aborts the process with a useful
 // message if that didn't actually delete *ptr because of extra refcounts.
 #define CHECK_RELEASE(ptr) \
-  CHECK_EQ(0, (ptr)->Release()) << "Unexpected refcount."
+  RTC_CHECK_EQ(0, (ptr)->Release()) << "Unexpected refcount."
 
 namespace webrtc_jni {
 
@@ -67,8 +51,8 @@ JNIEnv* AttachCurrentThreadIfNeeded();
 // function expecting a 64-bit param) picks up garbage in the high 32 bits.
 jlong jlongFromPointer(void* ptr);
 
-// JNIEnv-helper methods that CHECK success: no Java exception thrown and found
-// object/class/method/field is non-null.
+// JNIEnv-helper methods that RTC_CHECK success: no Java exception thrown and
+// found object/class/method/field is non-null.
 jmethodID GetMethodID(
     JNIEnv* jni, jclass c, const std::string& name, const char* signature);
 
@@ -104,6 +88,11 @@ std::string JavaToStdString(JNIEnv* jni, const jstring& j_string);
 jobject JavaEnumFromIndex(JNIEnv* jni, jclass state_class,
                           const std::string& state_class_name, int index);
 
+// Returns the name of a Java enum.
+std::string GetJavaEnumName(JNIEnv* jni,
+                            const std::string& className,
+                            jobject j_enum);
+
 jobject NewGlobalRef(JNIEnv* jni, jobject o);
 
 void DeleteGlobalRef(JNIEnv* jni, jobject o);
@@ -138,6 +127,4 @@ class ScopedGlobalRef {
 
 }  // namespace webrtc_jni
 
-
-
-#endif  // TALK_APP_WEBRTC_JAVA_JNI_JNI_HELPERS_H_
+#endif  // WEBRTC_API_JAVA_JNI_JNI_HELPERS_H_

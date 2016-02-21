@@ -23,6 +23,17 @@ public:
     }
     
 public:
+
+    virtual bool SendRtp(const uint8_t* packet,
+                         size_t length,
+                         const webrtc::PacketOptions& options) {
+        return transport_->sendRTPPacketA(packet, length);
+    }
+    virtual bool SendRtcp(const uint8_t* packet, size_t length) {
+        return transport_->sendRTCPPacketA(packet, length, STOR_);
+    }
+
+
     virtual int SendPacket(int channel, const void *data, size_t len) {
       return transport_->sendRTPPacketA(data, len);
     }

@@ -15,13 +15,13 @@
   'targets': [
      {
        'target_name': 'libvoip',
-          'type': 'loadable_module',
-          'dependencies': [
-              '<(webrtc_root)/webrtc.gyp:*',
-          ],
-          'include_dirs': [
-              '<(webrtc_root)/../',
-              '<(webrtc_root)/../third_party/libyuv/include',
+       'type': 'loadable_module',
+       'dependencies': [
+           '<(webrtc_root)/webrtc.gyp:*',
+       ],
+       'include_dirs': [
+           '<(webrtc_root)/../',
+           '<(webrtc_root)/../third_party/libyuv/include',
         ],
         'sources': [
             'WebRTC.cc',

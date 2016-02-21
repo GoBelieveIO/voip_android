@@ -25,6 +25,7 @@ import android.graphics.PixelFormat;
 import android.opengl.GLSurfaceView;
 import android.util.Log;
 
+
 public class ViEAndroidGLES20 extends GLSurfaceView
         implements GLSurfaceView.Renderer {
     private static String TAG = "WEBRTC-JR";
@@ -279,7 +280,7 @@ public class ViEAndroidGLES20 extends GLSurfaceView
                 if (egl.eglGetConfigAttrib(display, config, attribute, value)) {
                     Log.w(TAG, String.format("  %s: %d\n", name, value[0]));
                 } else {
-                    // Log.w(TAG, String.format("  %s: failed\n", name));
+                    // Logging.w(TAG, String.format("  %s: failed\n", name));
                     while (egl.eglGetError() != EGL10.EGL_SUCCESS);
                 }
             }
@@ -301,8 +302,6 @@ public class ViEAndroidGLES20 extends GLSurfaceView
         ActivityManager am =
                 (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         ConfigurationInfo info = am.getDeviceConfigurationInfo();
-        String TAG="beetle";
-        Log.v(TAG, "info:"+info.reqGlEsVersion);
         if(info.reqGlEsVersion >= 0x20000) {
             // Open GL ES 2.0 is supported.
             return true;

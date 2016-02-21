@@ -30,7 +30,7 @@ public:
 };
 
 class VOIP : public VoiceTransport, 
-             public webrtc::newapi::Transport, 
+             public webrtc::Transport, 
              public webrtc::LoadObserver,
              public VOIPCaptureDataCallback {
 public:
@@ -45,7 +45,8 @@ public:
 
 
     //implement webrtc::newapi::Transport
-    virtual bool SendRtp(const uint8_t* data, size_t len) {
+    virtual bool SendRtp(const uint8_t* data, size_t len, 
+                         const webrtc::PacketOptions& options) {
         //LOG("send rtp:%ud", len);
         sendPacket(data, len, VOIP_VIDEO, true);
         return true;
@@ -353,9 +354,7 @@ public:
         error = rtc->voe_apm->SetEcStatus(true);
         LOG("error:%d", error);
 
-        webrtc::Call::Config config(this);
-        config.overuse_callback = this;
-        config.voice_engine = rtc->voice_engine;
+        webrtc::Call::Config config;
     
         config.bitrate_config.min_bitrate_bps = kMinBandwidthBps;
         config.bitrate_config.start_bitrate_bps = kStartBandwidthBps;
@@ -367,9 +366,9 @@ public:
         //caller(1:3:101)
         //callee(2:4:102)
         if (_isCaller) {
-            sendStream = new AVSendStream(1, 101, this);
+            sendStream = new AVSendStream(1, 101, this, this);
         } else {
-            sendStream = new AVSendStream(2, 102, this);
+            sendStream = new AVSendStream(2, 102, this, this);
         }
         sendStream->setCall(_call);
 
@@ -379,9 +378,9 @@ public:
 
         AVReceiveStream *recvStream = NULL;
         if (_isCaller) {
-            recvStream = new AVReceiveStream(3, 2, 102, this);
+            recvStream = new AVReceiveStream(3, 2, 102, this, this);
         } else {
-            recvStream = new AVReceiveStream(4, 1, 101, this);
+            recvStream = new AVReceiveStream(4, 1, 101, this, this);
         }
         recvStream->setCall(_call);
 
@@ -522,13 +521,15 @@ public:
                 if (type == VOIP_AUDIO) {
                     rtc->voe_network->ReceivedRTPPacket(channel, p, len-18);
                 } else if (type == VOIP_VIDEO && _call) {
-                    _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len - 18);
+                    webrtc::PacketTime pt;
+                    _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len - 18, pt);
                 }
             } else if (packet_type == VOIP_RTCP) {
                 if (type == VOIP_AUDIO) {
                     rtc->voe_network->ReceivedRTCPPacket(channel, p, len - 18);
                 } else if (type == VOIP_VIDEO && _call) {
-                    _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len - 18);
+                    webrtc::PacketTime pt;
+                    _call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, (const uint8_t*)p, len - 18, pt);
                 }
             }
         }

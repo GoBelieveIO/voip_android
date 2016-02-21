@@ -1,32 +1,15 @@
-
 /*
- * libjingle
- * Copyright 2015 Google Inc.
+ *  Copyright 2015 The WebRTC project authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
-#include "jni_helpers.h"
+#include "webrtc/api/java/jni/jni_helpers.h"
+
+#include "webrtc/api/java/jni/classreferenceholder.h"
 
 #include <asm/unistd.h>
 #include <sys/prctl.h>
@@ -44,9 +27,8 @@ static pthread_once_t g_jni_ptr_once = PTHREAD_ONCE_INIT;
 // were attached by the JVM because of a Java->native call.
 static pthread_key_t g_jni_ptr;
 
-
 JavaVM *GetJVM() {
-  CHECK(g_jvm) << "JNI_OnLoad failed to run?";
+  RTC_CHECK(g_jvm) << "JNI_OnLoad failed to run?";
   return g_jvm;
 }
 
@@ -54,8 +36,8 @@ JavaVM *GetJVM() {
 JNIEnv* GetEnv() {
   void* env = NULL;
   jint status = g_jvm->GetEnv(&env, JNI_VERSION_1_6);
-  CHECK(((env != NULL) && (status == JNI_OK)) ||
-        ((env == NULL) && (status == JNI_EDETACHED)))
+  RTC_CHECK(((env != NULL) && (status == JNI_OK)) ||
+            ((env == NULL) && (status == JNI_EDETACHED)))
       << "Unexpected GetEnv return: " << status << ":" << env;
   return reinterpret_cast<JNIEnv*>(env);
 }
@@ -71,24 +53,24 @@ static void ThreadDestructor(void* prev_jni_ptr) {
   if (!GetEnv())
     return;
 
-  CHECK(GetEnv() == prev_jni_ptr)
+  RTC_CHECK(GetEnv() == prev_jni_ptr)
       << "Detaching from another thread: " << prev_jni_ptr << ":" << GetEnv();
   jint status = g_jvm->DetachCurrentThread();
-  CHECK(status == JNI_OK) << "Failed to detach thread: " << status;
-  CHECK(!GetEnv()) << "Detaching was a successful no-op???";
+  RTC_CHECK(status == JNI_OK) << "Failed to detach thread: " << status;
+  RTC_CHECK(!GetEnv()) << "Detaching was a successful no-op???";
 }
 
 static void CreateJNIPtrKey() {
-  CHECK(!pthread_key_create(&g_jni_ptr, &ThreadDestructor))
+  RTC_CHECK(!pthread_key_create(&g_jni_ptr, &ThreadDestructor))
       << "pthread_key_create";
 }
 
 jint InitGlobalJniVariables(JavaVM *jvm) {
-  CHECK(!g_jvm) << "InitGlobalJniVariables!";
+  RTC_CHECK(!g_jvm) << "InitGlobalJniVariables!";
   g_jvm = jvm;
-  CHECK(g_jvm) << "InitGlobalJniVariables handed NULL?";
+  RTC_CHECK(g_jvm) << "InitGlobalJniVariables handed NULL?";
 
-  CHECK(!pthread_once(&g_jni_ptr_once, &CreateJNIPtrKey)) << "pthread_once";
+  RTC_CHECK(!pthread_once(&g_jni_ptr_once, &CreateJNIPtrKey)) << "pthread_once";
 
   JNIEnv* jni = nullptr;
   if (jvm->GetEnv(reinterpret_cast<void**>(&jni), JNI_VERSION_1_6) != JNI_OK)
@@ -100,8 +82,9 @@ jint InitGlobalJniVariables(JavaVM *jvm) {
 // Return thread ID as a string.
 static std::string GetThreadId() {
   char buf[21];  // Big enough to hold a kuint64max plus terminating NULL.
-  CHECK_LT(snprintf(buf, sizeof(buf), "%d", syscall(__NR_gettid)),
-           (int)sizeof(buf))
+  RTC_CHECK_LT(snprintf(buf, sizeof(buf), "%ld",
+                        static_cast<long>(syscall(__NR_gettid))),
+               sizeof(buf))
       << "Thread id is bigger than uint64??";
   return std::string(buf);
 }
@@ -119,7 +102,7 @@ JNIEnv* AttachCurrentThreadIfNeeded() {
   JNIEnv* jni = GetEnv();
   if (jni)
     return jni;
-  CHECK(!pthread_getspecific(g_jni_ptr))
+  RTC_CHECK(!pthread_getspecific(g_jni_ptr))
       << "TLS has a JNIEnv* but not attached?";
 
   std::string name(GetThreadName() + " - " + GetThreadId());
@@ -133,10 +116,11 @@ JNIEnv* AttachCurrentThreadIfNeeded() {
 #else
   JNIEnv* env = NULL;
 #endif
-  CHECK(!g_jvm->AttachCurrentThread(&env, &args)) << "Failed to attach thread";
-  CHECK(env) << "AttachCurrentThread handed back NULL!";
+  RTC_CHECK(!g_jvm->AttachCurrentThread(&env, &args))
+      << "Failed to attach thread";
+  RTC_CHECK(env) << "AttachCurrentThread handed back NULL!";
   jni = reinterpret_cast<JNIEnv*>(env);
-  CHECK(!pthread_setspecific(g_jni_ptr, jni)) << "pthread_setspecific";
+  RTC_CHECK(!pthread_setspecific(g_jni_ptr, jni)) << "pthread_setspecific";
   return jni;
 }
 
@@ -150,18 +134,18 @@ jlong jlongFromPointer(void* ptr) {
   // conversion from pointer to integral type.  intptr_t to jlong is a standard
   // widening by the static_assert above.
   jlong ret = reinterpret_cast<intptr_t>(ptr);
-  DCHECK(reinterpret_cast<void*>(ret) == ptr);
+  RTC_DCHECK(reinterpret_cast<void*>(ret) == ptr);
   return ret;
 }
 
-// JNIEnv-helper methods that CHECK success: no Java exception thrown and found
-// object/class/method/field is non-null.
+// JNIEnv-helper methods that RTC_CHECK success: no Java exception thrown and
+// found object/class/method/field is non-null.
 jmethodID GetMethodID(
     JNIEnv* jni, jclass c, const std::string& name, const char* signature) {
   jmethodID m = jni->GetMethodID(c, name.c_str(), signature);
   CHECK_EXCEPTION(jni) << "error during GetMethodID: " << name << ", "
                        << signature;
-  CHECK(m) << name << ", " << signature;
+  RTC_CHECK(m) << name << ", " << signature;
   return m;
 }
 
@@ -170,7 +154,7 @@ jmethodID GetStaticMethodID(
   jmethodID m = jni->GetStaticMethodID(c, name, signature);
   CHECK_EXCEPTION(jni) << "error during GetStaticMethodID: " << name << ", "
                        << signature;
-  CHECK(m) << name << ", " << signature;
+  RTC_CHECK(m) << name << ", " << signature;
   return m;
 }
 
@@ -178,21 +162,21 @@ jfieldID GetFieldID(
     JNIEnv* jni, jclass c, const char* name, const char* signature) {
   jfieldID f = jni->GetFieldID(c, name, signature);
   CHECK_EXCEPTION(jni) << "error during GetFieldID";
-  CHECK(f) << name << ", " << signature;
+  RTC_CHECK(f) << name << ", " << signature;
   return f;
 }
 
 jclass GetObjectClass(JNIEnv* jni, jobject object) {
   jclass c = jni->GetObjectClass(object);
   CHECK_EXCEPTION(jni) << "error during GetObjectClass";
-  CHECK(c) << "GetObjectClass returned NULL";
+  RTC_CHECK(c) << "GetObjectClass returned NULL";
   return c;
 }
 
 jobject GetObjectField(JNIEnv* jni, jobject object, jfieldID id) {
   jobject o = jni->GetObjectField(object, id);
   CHECK_EXCEPTION(jni) << "error during GetObjectField";
-  CHECK(o) << "GetObjectField returned NULL";
+  RTC_CHECK(o) << "GetObjectField returned NULL";
   return o;
 }
 
@@ -225,6 +209,24 @@ bool IsNull(JNIEnv* jni, jobject obj) {
   return jni->NewLocalRef(obj) == NULL;
 }
 
+// Given a UTF-8 encoded |native| string return a new (UTF-16) jstring.
+jstring JavaStringFromStdString(JNIEnv* jni, const std::string& native) {
+  jstring jstr = jni->NewStringUTF(native.c_str());
+  CHECK_EXCEPTION(jni) << "error during NewStringUTF";
+  return jstr;
+}
+
+// Given a (UTF-16) jstring return a new UTF-8 native string.
+std::string JavaToStdString(JNIEnv* jni, const jstring& j_string) {
+  const char* chars = jni->GetStringUTFChars(j_string, NULL);
+  CHECK_EXCEPTION(jni) << "Error during GetStringUTFChars";
+  std::string str(chars, jni->GetStringUTFLength(j_string));
+  CHECK_EXCEPTION(jni) << "Error during GetStringUTFLength";
+  jni->ReleaseStringUTFChars(j_string, chars);
+  CHECK_EXCEPTION(jni) << "Error during ReleaseStringUTFChars";
+  return str;
+}
+
 // Return the (singleton) Java Enum object corresponding to |index|;
 jobject JavaEnumFromIndex(JNIEnv* jni, jclass state_class,
                           const std::string& state_class_name, int index) {
@@ -238,10 +240,23 @@ jobject JavaEnumFromIndex(JNIEnv* jni, jclass state_class,
   return ret;
 }
 
+std::string GetJavaEnumName(JNIEnv* jni,
+                            const std::string& className,
+                            jobject j_enum) {
+  jclass enumClass = FindClass(jni, className.c_str());
+  jmethodID nameMethod =
+      GetMethodID(jni, enumClass, "name", "()Ljava/lang/String;");
+  jstring name =
+      reinterpret_cast<jstring>(jni->CallObjectMethod(j_enum, nameMethod));
+  CHECK_EXCEPTION(jni) << "error during CallObjectMethod for " << className
+                       << ".name";
+  return JavaToStdString(jni, name);
+}
+
 jobject NewGlobalRef(JNIEnv* jni, jobject o) {
   jobject ret = jni->NewGlobalRef(o);
   CHECK_EXCEPTION(jni) << "error during NewGlobalRef";
-  CHECK(ret);
+  RTC_CHECK(ret);
   return ret;
 }
 
@@ -254,7 +269,7 @@ void DeleteGlobalRef(JNIEnv* jni, jobject o) {
 // callbacks (i.e. entry points that don't originate in a Java callstack
 // through a "native" method call).
 ScopedLocalRefFrame::ScopedLocalRefFrame(JNIEnv* jni) : jni_(jni) {
-  CHECK(!jni_->PushLocalFrame(0)) << "Failed to PushLocalFrame";
+  RTC_CHECK(!jni_->PushLocalFrame(0)) << "Failed to PushLocalFrame";
 }
 ScopedLocalRefFrame::~ScopedLocalRefFrame() {
   jni_->PopLocalFrame(NULL);

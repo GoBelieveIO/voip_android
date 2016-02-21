@@ -2,7 +2,7 @@
 #define BEETLE_VOIP_CAPTURE_H
 
 #include "webrtc/common_types.h"
-#include "webrtc/modules/video_capture/include/video_capture.h"
+#include "webrtc/modules/video_capture/video_capture.h"
 
 namespace webrtc {
     class VideoCaptureModule;

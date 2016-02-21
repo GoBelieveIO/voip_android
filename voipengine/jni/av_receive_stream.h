@@ -13,12 +13,14 @@ namespace webrtc {
     class AudioReceiveStream;
     class VideoDecoder;
     class VideoFrame;
+    class Transport;
 }
 
 class AVReceiveStream : public webrtc::VideoRenderer {
 
 private:
     VoiceTransport *voiceTransport;
+    webrtc::Transport *transport_;
     int32_t localSSRC;
     int32_t remoteSSRC;
     int32_t rtxSSRC;
@@ -41,7 +43,7 @@ private:
     void startAudioStream();
 
 public:
-	AVReceiveStream(int32_t localSSRC, int32_t remoteSSRC, int32_t rtxSSRC, VoiceTransport *t);
+	AVReceiveStream(int32_t localSSRC, int32_t remoteSSRC, int32_t rtxSSRC, VoiceTransport *t, webrtc::Transport *transport);
     void start();
     void stop();
 

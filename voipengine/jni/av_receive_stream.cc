@@ -1,28 +1,8 @@
 #include "av_receive_stream.h"
-#include "WebRTC.h"
-#include "webrtc/voice_engine/include/voe_base.h"
 #include "webrtc/common_types.h"
-
-#include "webrtc/modules/video_capture/include/video_capture_factory.h"
-#include "webrtc/base/thread.h"
-#include "webrtc/base/scoped_ptr.h"
-#include "webrtc/base/asyncinvoker.h"
-#include "webrtc/base/messagehandler.h"
-#include "webrtc/base/bind.h"
-#include "webrtc/base/helpers.h"
-#include "webrtc/base/checks.h"
-#include "webrtc/base/criticalsection.h"
-#include "webrtc/base/safe_conversions.h"
-#include "webrtc/base/thread.h"
-#include "webrtc/base/timeutils.h"
-#include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
-#include "webrtc/modules/video_capture/include/video_capture.h"
-#include "webrtc/video/audio_receive_stream.h"
+#include "webrtc/audio/audio_receive_stream.h"
 #include "webrtc/video/video_receive_stream.h"
 #include "webrtc/video/video_send_stream.h"
-#include "webrtc/video_engine/vie_channel_group.h"
-#include "webrtc/modules/utility/interface/process_thread.h"
-#include "webrtc/modules/video_coding/codecs/h264/include/h264.h"
 
 #include "webrtc/voice_engine/include/voe_network.h"
 #include "webrtc/voice_engine/include/voe_base.h"
@@ -35,21 +15,11 @@
 #include "webrtc/voice_engine/include/voe_rtp_rtcp.h"
 #include "webrtc/voice_engine/include/voe_hardware.h"
 
-
-#include "webrtc/engine_configurations.h"
-#include "webrtc/modules/video_render/include/video_render_defines.h"
-#include "webrtc/modules/video_render/include/video_render.h"
-#include "webrtc/modules/video_capture/include/video_capture_factory.h"
-#include "webrtc/system_wrappers/interface/tick_util.h"
-
+#include "WebRTC.h"
 #include "androidmediadecoder_jni.h"
 #include "androidmediaencoder_jni.h"
-
 #include "ChannelTransport.h"
-
 #undef LOG
-
-//#include "jni_helpers.h"
 #include "voip_jni.h"
 
 const char kVp8CodecName[] = "VP8";
@@ -65,18 +35,16 @@ const int kDefaultRtxVp8PlType = 96;
 
 static const int kNackHistoryMs = 1000;
 
-
-
-AVReceiveStream::AVReceiveStream(int32_t lssrc, int32_t rssrc, int32_t rtxSSRC, VoiceTransport *t):
+AVReceiveStream::AVReceiveStream(int32_t lssrc, int32_t rssrc, int32_t rtxSSRC, VoiceTransport *t, webrtc::Transport *transport):
     voiceTransport(t), localSSRC(lssrc), remoteSSRC(rssrc), rtxSSRC(rtxSSRC), 
-    voiceChannel(-1), voiceChannelTransport(NULL),
+    voiceChannel(-1), voiceChannelTransport(NULL), transport_(transport),
     call_(NULL), stream_(NULL), audioStream_(NULL),
     decoder_(NULL), renderFrames_(0), frameWidth_(0), frameHeight_(0) {
     
 }
 
 void AVReceiveStream::start() {
-    webrtc::VideoReceiveStream::Config config;
+    webrtc::VideoReceiveStream::Config config(transport_);
 
     webrtc::VideoCodecType type;
     const char *codec_name;
@@ -110,8 +78,6 @@ void AVReceiveStream::start() {
     }
 
     delete f;
-
-  
     
     webrtc::VideoReceiveStream::Decoder decoder;
     decoder.decoder = video_decoder;

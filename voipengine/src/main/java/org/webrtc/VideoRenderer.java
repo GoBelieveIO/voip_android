@@ -1,28 +1,11 @@
 /*
- * libjingle
- * Copyright 2013 Google Inc.
+ *  Copyright 2013 The WebRTC project authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
 package org.webrtc;
@@ -36,60 +19,69 @@ import java.nio.ByteBuffer;
  * on various platforms.
  */
 public class VideoRenderer {
-
-  /** Java version of cricket::VideoFrame. */
+  /**
+   * Java version of cricket::VideoFrame. Frames are only constructed from native code and test
+   * code.
+   */
   public static class I420Frame {
     public final int width;
     public final int height;
     public final int[] yuvStrides;
-    public final ByteBuffer[] yuvPlanes;
+    public ByteBuffer[] yuvPlanes;
     public final boolean yuvFrame;
-    public Object textureObject;
+    // Matrix that transforms standard coordinates to their proper sampling locations in
+    // the texture. This transform compensates for any properties of the video source that
+    // cause it to appear different from a normalized texture. This matrix does not take
+    // |rotationDegree| into account.
+    public final float[] samplingMatrix;
     public int textureId;
+    // Frame pointer in C++.
+    private long nativeFramePointer;
 
     // rotationDegree is the degree that the frame must be rotated clockwisely
     // to be rendered correctly.
     public int rotationDegree;
 
     /**
-     * Construct a frame of the given dimensions with the specified planar
-     * data.  If |yuvPlanes| is null, new planes of the appropriate sizes are
-     * allocated.
+     * Construct a frame of the given dimensions with the specified planar data.
      */
-    public I420Frame(
-        int width, int height, int rotationDegree,
-        int[] yuvStrides, ByteBuffer[] yuvPlanes) {
+    I420Frame(int width, int height, int rotationDegree, int[] yuvStrides, ByteBuffer[] yuvPlanes,
+        long nativeFramePointer) {
       this.width = width;
       this.height = height;
       this.yuvStrides = yuvStrides;
-      if (yuvPlanes == null) {
-        yuvPlanes = new ByteBuffer[3];
-        yuvPlanes[0] = ByteBuffer.allocateDirect(yuvStrides[0] * height);
-        yuvPlanes[1] = ByteBuffer.allocateDirect(yuvStrides[1] * height / 2);
-        yuvPlanes[2] = ByteBuffer.allocateDirect(yuvStrides[2] * height / 2);
-      }
       this.yuvPlanes = yuvPlanes;
       this.yuvFrame = true;
       this.rotationDegree = rotationDegree;
+      this.nativeFramePointer = nativeFramePointer;
       if (rotationDegree % 90 != 0) {
         throw new IllegalArgumentException("Rotation degree not multiple of 90: " + rotationDegree);
       }
+      // The convention in WebRTC is that the first element in a ByteBuffer corresponds to the
+      // top-left corner of the image, but in glTexImage2D() the first element corresponds to the
+      // bottom-left corner. This discrepancy is corrected by setting a vertical flip as sampling
+      // matrix.
+      samplingMatrix = new float[] {
+          1,  0, 0, 0,
+          0, -1, 0, 0,
+          0,  0, 1, 0,
+          0,  1, 0, 1};
     }
 
     /**
      * Construct a texture frame of the given dimensions with data in SurfaceTexture
      */
-    public I420Frame(
-        int width, int height, int rotationDegree,
-        Object textureObject, int textureId) {
+    I420Frame(int width, int height, int rotationDegree, int textureId, float[] samplingMatrix,
+        long nativeFramePointer) {
       this.width = width;
       this.height = height;
       this.yuvStrides = null;
       this.yuvPlanes = null;
-      this.textureObject = textureObject;
+      this.samplingMatrix = samplingMatrix;
       this.textureId = textureId;
       this.yuvFrame = false;
       this.rotationDegree = rotationDegree;
+      this.nativeFramePointer = nativeFramePointer;
       if (rotationDegree % 90 != 0) {
         throw new IllegalArgumentException("Rotation degree not multiple of 90: " + rotationDegree);
       }
@@ -103,59 +95,6 @@ public class VideoRenderer {
       return (rotationDegree % 180 == 0) ? height : width;
     }
 
-    /**
-     * Copy the planes out of |source| into |this| and return |this|.  Calling
-     * this with mismatched frame dimensions or frame type is a programming
-     * error and will likely crash.
-     */
-    public I420Frame copyFrom(I420Frame source) {
-      if (source.yuvFrame && yuvFrame) {
-        if (width != source.width || height != source.height) {
-          throw new RuntimeException("Mismatched dimensions!  Source: " +
-              source.toString() + ", destination: " + toString());
-        }
-        nativeCopyPlane(source.yuvPlanes[0], width, height,
-            source.yuvStrides[0], yuvPlanes[0], yuvStrides[0]);
-        nativeCopyPlane(source.yuvPlanes[1], width / 2, height / 2,
-            source.yuvStrides[1], yuvPlanes[1], yuvStrides[1]);
-        nativeCopyPlane(source.yuvPlanes[2], width / 2, height / 2,
-            source.yuvStrides[2], yuvPlanes[2], yuvStrides[2]);
-        rotationDegree = source.rotationDegree;
-        return this;
-      } else if (!source.yuvFrame && !yuvFrame) {
-        textureObject = source.textureObject;
-        textureId = source.textureId;
-        rotationDegree = source.rotationDegree;
-        return this;
-      } else {
-        throw new RuntimeException("Mismatched frame types!  Source: " +
-            source.toString() + ", destination: " + toString());
-      }
-    }
-
-    public I420Frame copyFrom(byte[] yuvData, int rotationDegree) {
-      if (yuvData.length < width * height * 3 / 2) {
-        throw new RuntimeException("Wrong arrays size: " + yuvData.length);
-      }
-      if (!yuvFrame) {
-        throw new RuntimeException("Can not feed yuv data to texture frame");
-      }
-      int planeSize = width * height;
-      ByteBuffer[] planes = new ByteBuffer[3];
-      planes[0] = ByteBuffer.wrap(yuvData, 0, planeSize);
-      planes[1] = ByteBuffer.wrap(yuvData, planeSize, planeSize / 4);
-      planes[2] = ByteBuffer.wrap(yuvData, planeSize + planeSize / 4,
-          planeSize / 4);
-      for (int i = 0; i < 3; i++) {
-        yuvPlanes[i].position(0);
-        yuvPlanes[i].put(planes[i]);
-        yuvPlanes[i].position(0);
-        yuvPlanes[i].limit(yuvPlanes[i].capacity());
-      }
-      this.rotationDegree = rotationDegree;
-      return this;
-    }
-
     @Override
     public String toString() {
       return width + "x" + height + ":" + yuvStrides[0] + ":" + yuvStrides[1] +
@@ -164,37 +103,38 @@ public class VideoRenderer {
   }
 
   // Helper native function to do a video frame plane copying.
-  private static native void nativeCopyPlane(ByteBuffer src, int width,
+  public static native void nativeCopyPlane(ByteBuffer src, int width,
       int height, int srcStride, ByteBuffer dst, int dstStride);
 
   /** The real meat of VideoRendererInterface. */
   public static interface Callbacks {
     // |frame| might have pending rotation and implementation of Callbacks
-    // should handle that by applying rotation during rendering.
+    // should handle that by applying rotation during rendering. The callee
+    // is responsible for signaling when it is done with |frame| by calling
+    // renderFrameDone(frame).
     public void renderFrame(I420Frame frame);
   }
 
-  // |this| either wraps a native (GUI) renderer or a client-supplied Callbacks
-  // (Java) implementation; this is indicated by |isWrappedVideoRenderer|.
-  public long nativeVideoRenderer;
-  private final boolean isWrappedVideoRenderer;
+   /**
+    * This must be called after every renderFrame() to release the frame.
+    */
+   public static void renderFrameDone(I420Frame frame) {
+     frame.yuvPlanes = null;
+     frame.textureId = 0;
+     if (frame.nativeFramePointer != 0) {
+       releaseNativeFrame(frame.nativeFramePointer);
+       frame.nativeFramePointer = 0;
+     }
+   }
 
-  public static VideoRenderer createGui(int x, int y) {
-    long nativeVideoRenderer = nativeCreateGuiVideoRenderer(x, y);
-    if (nativeVideoRenderer == 0) {
-      return null;
-    }
-    return new VideoRenderer(nativeVideoRenderer);
-  }
+  public long nativeVideoRenderer;
 
   public VideoRenderer(Callbacks callbacks) {
     nativeVideoRenderer = nativeWrapVideoRenderer(callbacks);
-    isWrappedVideoRenderer = true;
   }
 
   private VideoRenderer(long nativeVideoRenderer) {
     this.nativeVideoRenderer = nativeVideoRenderer;
-    isWrappedVideoRenderer = false;
   }
 
   public void dispose() {
@@ -202,17 +142,12 @@ public class VideoRenderer {
       // Already disposed.
       return;
     }
-    if (!isWrappedVideoRenderer) {
-      freeGuiVideoRenderer(nativeVideoRenderer);
-    } else {
-      freeWrappedVideoRenderer(nativeVideoRenderer);
-    }
+
+    freeWrappedVideoRenderer(nativeVideoRenderer);
     nativeVideoRenderer = 0;
   }
 
-  private static native long nativeCreateGuiVideoRenderer(int x, int y);
   private static native long nativeWrapVideoRenderer(Callbacks callbacks);
-
-  private static native void freeGuiVideoRenderer(long nativeVideoRenderer);
   private static native void freeWrappedVideoRenderer(long nativeVideoRenderer);
+  private static native void releaseNativeFrame(long nativeFramePointer);
 }

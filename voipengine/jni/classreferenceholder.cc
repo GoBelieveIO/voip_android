@@ -62,25 +62,23 @@ void FreeGlobalClassReferenceHolder() {
 }
 
 ClassReferenceHolder::ClassReferenceHolder(JNIEnv* jni) {
+  LoadClass(jni, "android/graphics/SurfaceTexture");
   LoadClass(jni, "java/nio/ByteBuffer");
-#if defined(ANDROID) && !defined(WEBRTC_CHROMIUM_BUILD)
+  LoadClass(jni, "java/util/ArrayList");
+
   LoadClass(jni, "org/webrtc/EglBase");
+  LoadClass(jni, "org/webrtc/EglBase$Context");
+  LoadClass(jni, "org/webrtc/EglBase14$Context");
+
   LoadClass(jni, "org/webrtc/MediaCodecVideoEncoder");
   LoadClass(jni, "org/webrtc/MediaCodecVideoEncoder$OutputBufferInfo");
   LoadClass(jni, "org/webrtc/MediaCodecVideoEncoder$VideoCodecType");
   LoadClass(jni, "org/webrtc/MediaCodecVideoDecoder");
-  LoadClass(jni, "org/webrtc/MediaCodecVideoDecoder$DecoderOutputBufferInfo");
+  LoadClass(jni, "org/webrtc/MediaCodecVideoDecoder$DecodedTextureBuffer");
+  LoadClass(jni, "org/webrtc/MediaCodecVideoDecoder$DecodedOutputBuffer");
   LoadClass(jni, "org/webrtc/MediaCodecVideoDecoder$VideoCodecType");
-  jclass j_egl_base_class = GetClass("org/webrtc/EglBase");
-  jmethodID j_is_egl14_supported_method = jni->GetStaticMethodID(
-      j_egl_base_class, "isEGL14Supported", "()Z");
-  bool is_egl14_supported = jni->CallStaticBooleanMethod(
-      j_egl_base_class, j_is_egl14_supported_method);
-  CHECK_EXCEPTION(jni);
-  if (is_egl14_supported) {
-    LoadClass(jni, "android/opengl/EGLContext");
-  }
-#endif
+
+
   LoadClass(jni, "org/webrtc/VideoRenderer$I420Frame");
 }
 

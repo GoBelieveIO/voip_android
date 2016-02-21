@@ -26,6 +26,8 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.SurfaceHolder.Callback;
 
+
+
 public class ViESurfaceRenderer implements Callback {
 
     private final static String TAG = "WEBRTC";
@@ -37,19 +39,17 @@ public class ViESurfaceRenderer implements Callback {
     // Rect of the source bitmap to draw
     private Rect srcRect = new Rect();
     // Rect of the destination canvas to draw to
-    private Rect dstRect = new Rect(0, 0, 200, 200);
+    private Rect dstRect = new Rect();
     private float dstTopScale = 0;
     private float dstBottomScale = 1;
     private float dstLeftScale = 0;
     private float dstRightScale = 1;
-    //private SurfaceView view;
 
     public ViESurfaceRenderer(SurfaceView view) {
         surfaceHolder = view.getHolder();
         if(surfaceHolder == null)
             return;
         surfaceHolder.addCallback(this);
-        //this.view = view;
     }
 
     // surfaceChanged and surfaceCreated share this function
@@ -150,7 +150,7 @@ public class ViESurfaceRenderer implements Callback {
 
         try{
             FileOutputStream output = new FileOutputStream(String.format(
-                "/sdcard/voip/render_%d.jpg", System.currentTimeMillis()));
+                "/sdcard/render_%d.jpg", System.currentTimeMillis()));
             output.write(byteOutStream.toByteArray());
             output.flush();
             output.close();
@@ -176,16 +176,10 @@ public class ViESurfaceRenderer implements Callback {
         Canvas canvas = surfaceHolder.lockCanvas();
         if(canvas != null) {
             // The follow line is for debug only
-//             saveBitmapToJPEG(srcRect.right - srcRect.left,
-//                              srcRect.bottom - srcRect.top);
-        	 canvas.drawBitmap(bitmap,
-                     new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight()), new Rect(
-                             0, 0, canvas.getWidth(), canvas.getHeight()), null);
-
-         //   canvas.drawBitmap(bitmap, srcRect, dstRect, null);
-            
+            // saveBitmapToJPEG(srcRect.right - srcRect.left,
+            //                  srcRect.bottom - srcRect.top);
+            canvas.drawBitmap(bitmap, srcRect, dstRect, null);
             surfaceHolder.unlockCanvasAndPost(canvas);
-
         }
     }
 

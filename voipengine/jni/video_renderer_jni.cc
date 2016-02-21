@@ -1,3 +1,4 @@
+#include <jni.h>
 #include "util.h"
 #include "WebRTC.h"
 #include "av_send_stream.h"
@@ -9,7 +10,10 @@
 #include "classreferenceholder.h"
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/basictypes.h"
+#include "webrtc/modules/video_render/video_render_internal.h"
+#include "webrtc/common_types.h"
 #include "voip_jni.h"
+#include <stdint.h>
 
 using rtc::scoped_ptr;
 using namespace webrtc_jni;
@@ -24,10 +28,7 @@ public:
           j_frame_class_(jni,
                          FindClass(jni, "org/webrtc/VideoRenderer$I420Frame")),
           j_i420_frame_ctor_id_(GetMethodID(
-                                            jni, *j_frame_class_, "<init>", "(III[I[Ljava/nio/ByteBuffer;)V")),
-          j_texture_frame_ctor_id_(GetMethodID(
-                                               jni, *j_frame_class_, "<init>",
-                                               "(IIILjava/lang/Object;I)V")),
+             jni, *j_frame_class_, "<init>", "(III[I[Ljava/nio/ByteBuffer;J)V")),
         j_byte_buffer_class_(jni, FindClass(jni, "java/nio/ByteBuffer")) {
         CHECK_EXCEPTION(jni);
     }
@@ -67,6 +68,7 @@ private:
 
     // Return a VideoRenderer.I420Frame referring to the data in |frame|.
     jobject CricketToJavaI420Frame(const webrtc::VideoFrame* frame) {
+
         jintArray strides = jni()->NewIntArray(3);
         jint* strides_array = jni()->GetIntArrayElements(strides, NULL);
         strides_array[0] = frame->stride(webrtc::kYPlane);
@@ -75,22 +77,26 @@ private:
         jni()->ReleaseIntArrayElements(strides, strides_array, 0);
         jobjectArray planes = jni()->NewObjectArray(3, *j_byte_buffer_class_, NULL);
         jobject y_buffer = jni()->NewDirectByteBuffer(
-                                                      const_cast<uint8*>(frame->buffer(webrtc::kYPlane)),
+                                                      const_cast<uint8_t*>(frame->buffer(webrtc::kYPlane)),
                                                       frame->stride(webrtc::kYPlane) * frame->height());
         jobject u_buffer = jni()->NewDirectByteBuffer(
-                                                      const_cast<uint8*>(frame->buffer(webrtc::kUPlane)), GetChromaSize(frame));
+                                                      const_cast<uint8_t*>(frame->buffer(webrtc::kUPlane)), GetChromaSize(frame));
         jobject v_buffer = jni()->NewDirectByteBuffer(
-                                                      const_cast<uint8*>(frame->buffer(webrtc::kVPlane)), GetChromaSize(frame));
+                                                      const_cast<uint8_t*>(frame->buffer(webrtc::kVPlane)), GetChromaSize(frame));
 
         jni()->SetObjectArrayElement(planes, 0, y_buffer);
         jni()->SetObjectArrayElement(planes, 1, u_buffer);
         jni()->SetObjectArrayElement(planes, 2, v_buffer);
 
+
+        webrtc::VideoFrame *copyFrame = new webrtc::VideoFrame;
+        copyFrame->ShallowCopy(*frame);
+
         return jni()->NewObject(
                                 *j_frame_class_, j_i420_frame_ctor_id_,
                                 frame->width(), frame->height(),
                                 static_cast<int>(frame->rotation()),
-                                strides, planes);
+                                    strides, planes, copyFrame);
     }
 
     JNIEnv* jni() {
@@ -101,23 +107,10 @@ private:
     jmethodID j_render_frame_id_;
     ScopedGlobalRef<jclass> j_frame_class_;
     jmethodID j_i420_frame_ctor_id_;
-    jmethodID j_texture_frame_ctor_id_;
     ScopedGlobalRef<jclass> j_byte_buffer_class_;
 };
 
 
-
-JOW(jlong, VideoRenderer_nativeCreateGuiVideoRenderer)(
-    JNIEnv* jni, jclass, int x, int y) {
-  return 0;
-}
-
-JOW(jlong, VideoRenderer_nativeWrapVideoRenderer)(
-    JNIEnv* jni, jclass, jobject j_callbacks) {
-  scoped_ptr<JavaVideoRendererWrapper> renderer(
-      new JavaVideoRendererWrapper(jni, j_callbacks));
-  return (jlong)renderer.release();
-}
 
 JOW(void, VideoRenderer_nativeCopyPlane)(
     JNIEnv *jni, jclass, jobject j_src_buffer, jint width, jint height,
@@ -155,11 +148,18 @@ JOW(void, VideoRenderer_nativeCopyPlane)(
   }
 }
 
-
-JOW(void, VideoRenderer_freeGuiVideoRenderer)(JNIEnv*, jclass, jlong j_p) {
-    
+JOW(jlong, VideoRenderer_nativeWrapVideoRenderer)(
+    JNIEnv* jni, jclass, jobject j_callbacks) {
+  scoped_ptr<JavaVideoRendererWrapper> renderer(
+      new JavaVideoRendererWrapper(jni, j_callbacks));
+  return (jlong)renderer.release();
 }
 
 JOW(void, VideoRenderer_freeWrappedVideoRenderer)(JNIEnv*, jclass, jlong j_p) {
   delete reinterpret_cast<JavaVideoRendererWrapper*>(j_p);
+}
+
+JOW(void, VideoRenderer_releaseNativeFrame)(
+    JNIEnv* jni, jclass, jlong j_frame_ptr) {
+    delete reinterpret_cast<const webrtc::VideoFrame*>(j_frame_ptr);
 }

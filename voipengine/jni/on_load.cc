@@ -12,8 +12,8 @@
 #include <assert.h>
 #include <stdint.h>
 #include "webrtc/modules/video_capture/video_capture_internal.h"
-#include "webrtc/modules/video_render/video_render_internal.h"
-#include "webrtc/modules/utility/interface/jvm_android.h"
+//#include "webrtc/modules/video_render/video_render_internal.h"
+#include "webrtc/modules/utility/include/jvm_android.h"
 #include "webrtc/voice_engine/include/voe_base.h"
 #include "voip_jni.h"
 #include "jni_helpers.h"
@@ -58,7 +58,7 @@ JOWW(void, NativeWebRtcContextRegistry_unRegister)(
     jclass) {
     LOG("webrtc unregister");
     //webrtc::JVM::Uninitialize();
-    //webrtc::SetCaptureAndroidVM(NULL, NULL);
+    webrtc::SetCaptureAndroidVM(NULL, NULL);
     //webrtc::SetRenderAndroidVM(NULL);
     webrtc::VoiceEngine::SetAndroidObjects(NULL, NULL);
 }
