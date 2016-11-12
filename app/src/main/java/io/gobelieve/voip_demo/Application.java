@@ -4,7 +4,6 @@ import android.os.AsyncTask;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.beetle.NativeWebRtcContextRegistry;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -16,9 +15,6 @@ public class Application extends android.app.Application {
     @Override
     public void onCreate() {
         super.onCreate();
-
-        //初始化webrtc 只能调用一次
-        new NativeWebRtcContextRegistry().register(getApplicationContext());
 
         refreshHost();
     }

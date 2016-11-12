@@ -24,7 +24,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.beetle.VOIPEngine;
+
 import com.beetle.im.RTMessage;
 import com.beetle.im.RTMessageObserver;
 import com.beetle.im.Timer;
@@ -56,7 +56,7 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
 
     private TextView durationTextView;
 
-    protected VOIPEngine voip;
+
     private int duration;
     private Timer durationTimer;
     //探测对方是否在线
@@ -73,15 +73,7 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
 
 
 
-    protected boolean isP2P() {
-        if (this.voipSession.localNatMap == null || this.voipSession.peerNatMap == null) {
-            return false;
-        }
-        if (this.voipSession.localNatMap.ip != 0 && this.voipSession.peerNatMap.ip != 0) {
-            return true;
-        }
-        return  false;
-    }
+
 
     Runnable mHideRunnable = new Runnable() {
         @Override
@@ -169,7 +161,6 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
 
         voipSession = new VOIPSession(currentUID, peerUID);
         voipSession.setObserver(this);
-        voipSession.holePunch();
 
         VOIPService.getInstance().pushVOIPObserver(this.voipSession);
         VOIPService.getInstance().addRTObserver(this);
@@ -179,19 +170,6 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
             acceptButton.setVisibility(View.GONE);
             refuseButton.setVisibility(View.GONE);
 
-            this.pingTimer = new Timer() {
-                @Override
-                protected void fire() {
-                    RTMessage rt = new RTMessage();
-                    rt.sender = currentUID;
-                    rt.receiver = peerUID;
-                    //自定义格式
-                    rt.content = "ping";
-                    VOIPService.getInstance().sendRTMessage(rt);
-                }
-            };
-            this.pingTimer.setTimer(uptimeMillis(), 1000);
-            this.pingTimer.resume();
 
             dial();
 
@@ -371,7 +349,7 @@ public class VOIPActivity extends Activity implements VOIPSession.VOIPSessionObs
             protected void fire() {
                 VOIPActivity.this.duration += 1;
                 String text = String.format("%02d:%02d", VOIPActivity.this.duration/60, VOIPActivity.this.duration%60);
-                Log.i(TAG, "ddd:" + text);
+                //Log.i(TAG, "ddd:" + text);
                 durationTextView.setText(text);
             }
         };

@@ -1,13 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 21
-    buildToolsVersion "21.1.1"
+    compileSdkVersion 23
+    buildToolsVersion "23.0.2"
+    useLibrary  'org.apache.http.legacy'
 
     defaultConfig {
         applicationId "io.gobelieve.voip_demo"
-        minSdkVersion 9
-        targetSdkVersion 21
+        minSdkVersion 11
+        targetSdkVersion 23
         versionCode 1
         versionName "1.0"
     }
@@ -37,10 +38,11 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:appcompat-v7:21.0.2'
-    compile project(":asynctcp")
-    compile project(":imsdk")
-    compile project(":voipengine")
-    compile project(":voipsession")
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile 'com.android.support:appcompat-v7:23.0.1'
+    compile project(':asynctcp')
+    compile project(':imsdk')
+    compile project(':voipsession')
+    compile files('src/main/libs/base_java.jar')
+    compile files('src/main/libs/libjingle_peerconnection_java.jar')
 }

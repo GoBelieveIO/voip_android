@@ -4,11 +4,26 @@
     android:layout_height="match_parent"
     >
 
-    <io.gobelieve.voip_demo.RTCRenderView
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:id="@+id/render"
-        android:layout_alignParentTop="true"/>
+
+    <io.gobelieve.voip_demo.PercentFrameLayout
+        android:id="@+id/remote_video_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <org.webrtc.SurfaceViewRenderer
+            android:id="@+id/remote_video_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </io.gobelieve.voip_demo.PercentFrameLayout>
+
+    <io.gobelieve.voip_demo.PercentFrameLayout
+        android:id="@+id/local_video_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <org.webrtc.SurfaceViewRenderer
+            android:id="@+id/local_video_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </io.gobelieve.voip_demo.PercentFrameLayout>
 
     <LinearLayout
         android:layout_width="fill_parent"
@@ -17,8 +32,7 @@
         android:paddingLeft="@dimen/activity_horizontal_margin"
         android:paddingRight="@dimen/activity_horizontal_margin"
         android:paddingTop="@dimen/activity_vertical_margin"
-        android:paddingBottom="@dimen/activity_vertical_margin"
-        tools:context="com.beetle.face.activity.VOIPVideoActivity">
+        android:paddingBottom="@dimen/activity_vertical_margin">
 
         <RelativeLayout
             android:layout_width="fill_parent"
@@ -66,19 +80,7 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:layout_centerVertical="true">
-                <RelativeLayout
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1">
 
-                    <ImageButton
-                        android:layout_width="64dp"
-                        android:layout_height="64dp"
-                        android:background="@drawable/call_answer_x"
-                        android:id="@+id/accept"
-                        android:layout_centerInParent="true"
-                        android:onClick="accept"/>
-                </RelativeLayout>
                 <RelativeLayout
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
@@ -93,6 +95,21 @@
                         android:layout_centerHorizontal="true"
                         android:onClick="refuse" />
                 </RelativeLayout>
+
+                <RelativeLayout
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <ImageButton
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:background="@drawable/call_answer_x"
+                        android:id="@+id/accept"
+                        android:layout_centerInParent="true"
+                        android:onClick="accept"/>
+                </RelativeLayout>
+
             </LinearLayout>
             <Button
                 android:layout_width="wrap_content"
