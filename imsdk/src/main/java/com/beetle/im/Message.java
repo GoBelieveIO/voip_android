@@ -30,6 +30,19 @@ class Command{
     public static final int MSG_ROOM_IM = 20;
     public static final int MSG_SYSTEM = 21;
     public static final int MSG_CUSTOMER_SERVICE = 23;
+    public static final int MSG_CUSTOMER = 24;
+    public static final int MSG_CUSTOMER_SUPPORT = 25;
+
+    public static final int MSG_SYNC = 26;
+    public static final int MSG_SYNC_BEGIN = 27;
+    public static final int MSG_SYNC_END = 28;
+    public static final int MSG_SYNC_NOTIFY = 29;
+
+    public static final int MSG_SYNC_GROUP = 30;
+    public static final int MSG_SYNC_GROUP_BEGIN = 31;
+    public static final int MSG_SYNC_GROUP_END = 32;
+    public static final int MSG_SYNC_GROUP_NOTIFY = 33;
+
 
     public static final int MSG_VOIP_CONTROL = 64;
 }
@@ -44,6 +57,14 @@ class AuthenticationToken {
     public String token;
     public int platformID;
     public String deviceID;
+}
+
+//个人消息：typedef long SyncKey
+
+//超级群
+class GroupSyncKey {
+    public long groupID;
+    public long syncKey;
 }
 
 public class Message {
@@ -126,24 +147,26 @@ public class Message {
             System.arraycopy(ctl.content, 0, buf, pos, ctl.content.length);
             pos += ctl.content.length;
             return Arrays.copyOf(buf, HEAD_SIZE + 16 + ctl.content.length);
-        } else if (cmd == Command.MSG_CUSTOMER_SERVICE) {
+        } else if (cmd == Command.MSG_CUSTOMER || cmd == Command.MSG_CUSTOMER_SUPPORT) {
             CustomerMessage cs = (CustomerMessage) body;
-            BytePacket.writeInt64(cs.customer, buf, pos);
+            BytePacket.writeInt64(cs.customerAppID, buf, pos);
             pos += 8;
-            BytePacket.writeInt64(cs.sender, buf, pos);
+            BytePacket.writeInt64(cs.customerID, buf, pos);
             pos += 8;
-            BytePacket.writeInt64(cs.receiver, buf, pos);
+            BytePacket.writeInt64(cs.storeID, buf, pos);
+            pos += 8;
+            BytePacket.writeInt64(cs.sellerID, buf, pos);
             pos += 8;
             BytePacket.writeInt32(cs.timestamp, buf, pos);
             pos += 4;
             try {
                 byte[] c = cs.content.getBytes("UTF-8");
-                if (c.length + 28 >= 32 * 1024) {
+                if (c.length + 36 >= 32 * 1024) {
                     Log.e("imservice", "packet buffer overflow");
                     return null;
                 }
                 System.arraycopy(c, 0, buf, pos, c.length);
-                return Arrays.copyOf(buf, HEAD_SIZE + 28 + c.length);
+                return Arrays.copyOf(buf, HEAD_SIZE + 36 + c.length);
             } catch (Exception e) {
                 Log.e("imservice", "encode utf8 error");
                 return null;
@@ -166,8 +189,43 @@ public class Message {
                 Log.e("imservice", "encode utf8 error");
                 return null;
             }
+        } else if (cmd == Command.MSG_ROOM_IM) {
+            RoomMessage rm = (RoomMessage)body;
+
+            BytePacket.writeInt64(rm.sender, buf, pos);
+            pos += 8;
+            BytePacket.writeInt64(rm.receiver, buf, pos);
+            pos += 8;
+            try {
+                byte[] c = rm.content.getBytes("UTF-8");
+                if (c.length + 24 >= 32 * 1024) {
+                    Log.e("imservice", "packet buffer overflow");
+                    return null;
+                }
+                System.arraycopy(c, 0, buf, pos, c.length);
+                return Arrays.copyOf(buf, HEAD_SIZE + 16 + c.length);
+            } catch (Exception e) {
+                Log.e("imservice", "encode utf8 error");
+                return null;
+            }
+        } else if (cmd == Command.MSG_ENTER_ROOM || cmd == Command.MSG_LEAVE_ROOM) {
+            Long roomID = (Long) body;
+            BytePacket.writeInt64(roomID, buf, pos);
+            return Arrays.copyOf(buf, HEAD_SIZE + 8);
+        } else if (cmd == Command.MSG_SYNC) {
+            Long syncKey = (Long) body;
+            BytePacket.writeInt64(syncKey, buf, pos);
+            return Arrays.copyOf(buf, HEAD_SIZE + 8);
+        } else if (cmd == Command.MSG_SYNC_GROUP) {
+            GroupSyncKey syncKey = (GroupSyncKey)body;
+            BytePacket.writeInt64(syncKey.groupID, buf, pos);
+            pos += 8;
+            BytePacket.writeInt64(syncKey.syncKey, buf, pos);
+            pos += 8;
+            return Arrays.copyOf(buf, HEAD_SIZE + 16);
+        } else {
+            return null;
         }
-        return null;
     }
 
     public boolean unpack(byte[] data) {
@@ -217,19 +275,6 @@ public class Message {
             } catch (Exception e) {
                 return false;
             }
-        } else if (cmd == Command.MSG_LOGIN_POINT) {
-            LoginPoint lp = new LoginPoint();
-            lp.upTimestamp = BytePacket.readInt32(data, pos);
-            pos += 4;
-            lp.platformID = data[pos];
-            pos++;
-            try {
-                lp.deviceID = new String(data, pos, data.length - 13, "UTF-8");
-                this.body = lp;
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
         } else if (cmd == Command.MSG_SYSTEM) {
             try {
                 this.body = new String(data, pos, data.length - HEAD_SIZE, "UTF-8");
@@ -246,18 +291,20 @@ public class Message {
             ctl.content = Arrays.copyOfRange(data, pos, data.length);
             this.body = ctl;
             return true;
-        } else if (cmd == Command.MSG_CUSTOMER_SERVICE) {
+        } else if (cmd == Command.MSG_CUSTOMER || cmd == Command.MSG_CUSTOMER_SUPPORT) {
             CustomerMessage cs = new CustomerMessage();
-            cs.customer = BytePacket.readInt64(data, pos);
+            cs.customerAppID = BytePacket.readInt64(data, pos);
             pos += 8;
-            cs.sender = BytePacket.readInt64(data, pos);
+            cs.customerID = BytePacket.readInt64(data, pos);
             pos += 8;
-            cs.receiver = BytePacket.readInt64(data, pos);
+            cs.storeID = BytePacket.readInt64(data, pos);
+            pos += 8;
+            cs.sellerID = BytePacket.readInt64(data, pos);
             pos += 8;
             cs.timestamp = BytePacket.readInt32(data, pos);
             pos += 4;
             try {
-                cs.content = new String(data, pos, data.length - 28 - HEAD_SIZE, "UTF-8");
+                cs.content = new String(data, pos, data.length - 36 - HEAD_SIZE, "UTF-8");
                 this.body = cs;
                 return true;
             } catch (Exception e) {
@@ -276,6 +323,39 @@ public class Message {
             } catch (Exception e) {
                 return false;
             }
+        } else if (cmd == Command.MSG_ROOM_IM) {
+            RoomMessage rt = new RoomMessage();
+            rt.sender = BytePacket.readInt64(data, pos);
+            pos += 8;
+            rt.receiver = BytePacket.readInt64(data, pos);
+            pos += 8;
+            try {
+                rt.content = new String(data, pos, data.length - pos, "UTF-8");
+                this.body = rt;
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        } else if (cmd == Command.MSG_ENTER_ROOM || cmd == Command.MSG_LEAVE_ROOM) {
+            long roomID = BytePacket.readInt64(data, pos);
+            this.body = new Long(roomID);
+            return true;
+        } else if (cmd == Command.MSG_SYNC_BEGIN ||
+                cmd == Command.MSG_SYNC_END ||
+                cmd == Command.MSG_SYNC_NOTIFY) {
+            long key = BytePacket.readInt64(data, pos);
+            this.body = new Long(key);
+            return true;
+        } else if (cmd == Command.MSG_SYNC_GROUP_BEGIN ||
+                cmd == Command.MSG_SYNC_GROUP_END ||
+                cmd == Command.MSG_SYNC_GROUP_NOTIFY) {
+            GroupSyncKey key = new GroupSyncKey();
+            key.groupID = BytePacket.readInt64(data, pos);
+            pos += 8;
+            key.syncKey = BytePacket.readInt64(data, pos);
+            pos += 8;
+            this.body = key;
+            return true;
         } else {
             return true;
         }

@@ -66,8 +66,9 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
 
         //app可以单独部署服务器，给予第三方应用更多的灵活性
         //在开发阶段也可以配置成测试环境的地址 "sandbox.voipnode.gobelieve.io", "sandbox.imnode.gobelieve.io"
-        String sdkHost = "imnode.gobelieve.io";
+        String sdkHost = "imnode2.gobelieve.io";
         VOIPService.getInstance().setHost(sdkHost);
+        VOIPService.getInstance().setIsSync(false);
         VOIPService.getInstance().registerConnectivityChangeReceiver(getApplicationContext());
         VOIPService.getInstance().setDeviceID(androidID);
     }
