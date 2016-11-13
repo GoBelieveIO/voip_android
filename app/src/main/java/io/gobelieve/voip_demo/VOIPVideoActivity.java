@@ -28,6 +28,7 @@ import org.webrtc.CameraEnumerator;
 import org.webrtc.EglBase;
 import org.webrtc.FileVideoCapturer;
 import org.webrtc.IceCandidate;
+import org.webrtc.PeerConnection;
 import org.webrtc.RendererCommon;
 import org.webrtc.SessionDescription;
 import org.webrtc.StatsReport;
@@ -144,6 +145,9 @@ public class VOIPVideoActivity extends VOIPActivity implements PeerConnectionCli
 
         setContentView(R.layout.activity_voip_video);
 
+        super.onCreate(savedInstanceState);
+
+
 
         scalingType = RendererCommon.ScalingType.SCALE_ASPECT_FILL;
 
@@ -212,7 +216,17 @@ public class VOIPVideoActivity extends VOIPActivity implements PeerConnectionCli
                 VOIPVideoActivity.this, peerConnectionParameters, VOIPVideoActivity.this);
 
 
-        super.onCreate(savedInstanceState);
+        PeerConnection.IceServer server = new PeerConnection.IceServer("stun:stun.counterpath.net:3478");
+
+        long appid = 7;
+        long uid = this.currentUID;
+        String username = String.format("%d_%d", appid, uid);
+        String password = token;
+        PeerConnection.IceServer server2 = new PeerConnection.IceServer("turn:turn.gobelieve.io:3478?transport=udp", username, password);
+
+        peerConnectionClient.clearIceServer();
+        //peerConnectionClient.addIceServer(server);
+        peerConnectionClient.addIceServer(server2);
 
     }
 
@@ -368,18 +382,14 @@ public class VOIPVideoActivity extends VOIPActivity implements PeerConnectionCli
             remoteRenderScreen.release();
             remoteRenderScreen = null;
         }
-
-        if (iceConnected && !isError) {
-            setResult(RESULT_OK);
-        } else {
-            setResult(RESULT_CANCELED);
-        }
     }
 
 
     @Override
     protected void onDestroy () {
         super.onDestroy();
+
+        disconnect();
     }
 
 
