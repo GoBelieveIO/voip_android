@@ -1,13 +1,3 @@
-/*
- *  Copyright 2014 The WebRTC Project Authors. All rights reserved.
- *
- *  Use of this source code is governed by a BSD-style license
- *  that can be found in the LICENSE file in the root of the source
- *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may
- *  be found in the AUTHORS file in the root of the source tree.
- */
-
 package io.gobelieve.voip_demo;
 
 import android.content.Context;
@@ -91,7 +81,6 @@ public class PeerConnectionClient {
     private final SDPObserver sdpObserver = new SDPObserver();
     private final ScheduledExecutorService executor;
 
-    private Context context;
     private PeerConnectionFactory factory;
     private PeerConnection peerConnection;
     PeerConnectionFactory.Options options = null;
@@ -261,7 +250,6 @@ public class PeerConnectionClient {
         this.events = events;
         videoCallEnabled = peerConnectionParameters.videoCallEnabled;
         // Reset variables to initial states.
-        this.context = null;
         factory = null;
         peerConnection = null;
         preferIsac = false;
@@ -400,7 +388,6 @@ public class PeerConnectionClient {
         if (options != null) {
             Log.d(TAG, "Factory networkIgnoreMask option: " + options.networkIgnoreMask);
         }
-        this.context = context;
         factory = new PeerConnectionFactory(options);
         Log.d(TAG, "Peer connection factory created.");
     }
@@ -646,6 +633,35 @@ public class PeerConnectionClient {
                 }
                 if (remoteVideoTrack != null) {
                     remoteVideoTrack.setEnabled(renderVideo);
+                }
+            }
+        });
+    }
+
+
+
+    public void toogleVideo() {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                renderVideo = !renderVideo;
+                if (localVideoTrack != null) {
+                    localVideoTrack.setEnabled(renderVideo);
+                }
+                if (remoteVideoTrack != null) {
+                    remoteVideoTrack.setEnabled(renderVideo);
+                }
+            }
+        });
+    }
+
+    public void toogleAudio() {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                enableAudio = !enableAudio;
+                if (localAudioTrack != null) {
+                    localAudioTrack.setEnabled(enableAudio);
                 }
             }
         });

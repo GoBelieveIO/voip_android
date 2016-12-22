@@ -177,9 +177,17 @@ public class VOIPVideoActivity extends VOIPActivity  {
 
     protected void dial() {
         super.dial();
-
         this.voipSession.dialVideo();
     }
+
+    @Override
+    protected void startStream() {
+        super.startStream();
+        AudioManager am = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        am.setSpeakerphoneOn(true);
+        am.setMode(AudioManager.MODE_IN_COMMUNICATION);
+    }
+
 
     protected void waitAccept() {
         super.waitAccept();

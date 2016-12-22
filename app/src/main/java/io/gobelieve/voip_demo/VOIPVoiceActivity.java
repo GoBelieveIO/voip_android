@@ -84,10 +84,8 @@ public class VOIPVoiceActivity extends VOIPActivity {
         ImageView header = (ImageView)findViewById(R.id.header);
         header.setImageResource(R.drawable.avatar_contact);
 
-
         // Create video renderers.
         rootEglBase = EglBase.create();
-
         if (isCaller) {
             dial();
         } else {
@@ -102,10 +100,16 @@ public class VOIPVoiceActivity extends VOIPActivity {
     }
 
 
+    @Override
+    protected void startStream() {
+        super.startStream();
+        AudioManager am = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        am.setSpeakerphoneOn(false);
+        am.setMode(AudioManager.MODE_IN_COMMUNICATION);
+    }
 
     @Override
     protected void onDestroy () {
-
         super.onDestroy();
     }
 

@@ -1,63 +1,88 @@
 package io.gobelieve.voip_demo;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.Configuration;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.opengl.GLSurfaceView;
-import android.os.Build;
-import android.os.Handler;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
-import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.TextView;
-
-
 import com.beetle.im.RTMessage;
 import com.beetle.im.RTMessageObserver;
 import com.beetle.im.Timer;
 import com.beetle.voip.VOIPService;
 import com.beetle.voip.VOIPSession;
-
-
+import org.json.JSONObject;
 import java.util.Date;
-
-
 import static android.os.SystemClock.uptimeMillis;
 
-public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSessionObserver  {
+public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSessionObserver, RTMessageObserver  {
     protected static final String TAG = "face";
+    private static final long APPID = 7;
 
     protected Button handUpButton;
     protected ImageButton refuseButton;
     protected ImageButton acceptButton;
 
     protected TextView durationTextView;
-
     protected int duration;
     protected Timer durationTimer;
 
     protected MediaPlayer player;
-
     protected VOIPSession voipSession;
     private boolean isConnected;
+
+    protected long currentUID;
+    protected long peerUID;
+    protected String peerName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.i(TAG, "voip activity on create");
+
+        Intent intent = getIntent();
+
+        isCaller = intent.getBooleanExtra("is_caller", false);
+        peerUID = intent.getLongExtra("peer_uid", 0);
+
+        if (peerUID == 0) {
+            Log.e(TAG, "peer uid is 0");
+            return;
+        }
+
+        peerName = intent.getStringExtra("peer_name");
+
+        if (peerName == null) {
+            peerName = "";
+        }
+
+        currentUID = intent.getLongExtra("current_uid", 0);
+
+        if (currentUID == 0) {
+            Log.e(TAG, "peer uid is 0");
+            return;
+        }
+
+        String token = intent.getStringExtra("token");
+        if (TextUtils.isEmpty(token)) {
+            Log.e(TAG, "token is empty");
+            return;
+        }
+
+        long appid = APPID;
+        long uid = this.currentUID;
+
+        turnUserName = String.format("%d_%d", appid, uid);
+        turnPassword = token;
 
         voipSession = new VOIPSession(currentUID, peerUID);
         voipSession.setObserver(this);
@@ -87,27 +112,6 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
         super.onDestroy();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_voip, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -211,9 +215,9 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
 
     protected void startStream() {
         super.startStream();
-        AudioManager am = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
-        am.setSpeakerphoneOn(false);
-        am.setMode(AudioManager.MODE_IN_COMMUNICATION);
+
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         this.duration = 0;
         this.durationTimer = new Timer() {
             @Override
@@ -229,6 +233,7 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
 
     protected void stopStream() {
         super.stopStream();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         this.durationTimer.suspend();
         this.durationTimer = null;
     }
@@ -273,10 +278,12 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
         this.player = null;
         dismiss();
     }
+
     @Override
     public void onAcceptTimeout() {
         dismiss();
     }
+
     @Override
     public void onConnected() {
         if (this.player != null) {
@@ -298,5 +305,27 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
     @Override
     public void onRefuseFinshed() {
         dismiss();
+    }
+
+
+    @Override
+    protected void sendRTMessage(JSONObject json) {
+        RTMessage rt = new RTMessage();
+        rt.sender = this.currentUID;
+        rt.receiver = this.peerUID;
+        rt.content = json.toString();
+
+        Log.i(TAG, "send rt message:" + rt.content);
+        VOIPService.getInstance().sendRTMessage(rt);
+    }
+
+    @Override
+    public void onRTMessage(RTMessage rt) {
+        if (rt.sender != peerUID) {
+            return;
+        }
+
+        Log.i(TAG, "recv rt message:" + rt.content);
+        onMessage(rt.content);
     }
 }
