@@ -195,7 +195,7 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
     }
 
     private boolean captureToTexture() {
-        return getIntent().getBooleanExtra(EXTRA_CAPTURETOTEXTURE_ENABLED, false);
+        return getIntent().getBooleanExtra(EXTRA_CAPTURETOTEXTURE_ENABLED, true);
     }
 
     private VideoCapturer createCameraCapturer(CameraEnumerator enumerator) {
@@ -289,28 +289,6 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
         }
     }
 
-    private void disconnectWithErrorMessage(final String errorMessage) {
-        if (!activityRunning) {
-            Log.e(TAG, "Critical error: " + errorMessage);
-            disconnect();
-        } else {
-            new AlertDialog.Builder(this)
-                    .setTitle(getText(R.string.channel_error_title))
-                    .setMessage(errorMessage)
-                    .setCancelable(false)
-                    .setNeutralButton(R.string.ok,
-                            new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int id) {
-                                    dialog.cancel();
-                                    disconnect();
-                                }
-                            })
-                    .create()
-                    .show();
-        }
-    }
-
 
     // Disconnect from remote resources, dispose of local resources, and exit.
     private void disconnect() {
@@ -359,7 +337,20 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
             public void run() {
                 if (!isError) {
                     isError = true;
-                    disconnectWithErrorMessage(description);
+
+                    new AlertDialog.Builder(WebRTCActivity.this)
+                            .setTitle(getText(R.string.channel_error_title))
+                            .setMessage(description)
+                            .setCancelable(false)
+                            .setNeutralButton(R.string.ok,
+                                    new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int id) {
+                                            dialog.cancel();
+                                        }
+                                    })
+                            .create()
+                            .show();
                 }
             }
         });
@@ -643,7 +634,6 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
             public void run() {
                 logAndToast("ICE disconnected");
                 iceConnected = false;
-                disconnect();
             }
         });
     }
