@@ -3,9 +3,7 @@ package io.gobelieve.voip_demo;
 
 import android.app.ProgressDialog;
 import android.content.Intent;
-import android.hardware.Camera;
 import android.os.AsyncTask;
-import android.os.Environment;
 import android.provider.Settings;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -15,11 +13,13 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.beetle.im.IMService;
+import com.beetle.im.RTMessage;
+import com.beetle.im.RTMessageObserver;
+import com.beetle.im.SystemMessageObserver;
 import com.beetle.voip.VOIPCommand;
 import com.beetle.im.VOIPControl;
 import com.beetle.im.VOIPObserver;
-import com.beetle.voip.VOIPService;
-import com.beetle.voip.VOIPSession;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -30,6 +30,7 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HTTP;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.webrtc.MediaCodecVideoDecoder;
 import org.webrtc.MediaCodecVideoEncoder;
@@ -37,9 +38,13 @@ import org.webrtc.MediaCodecVideoEncoder;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
+
 import android.util.Log;
 
-public class MainActivity extends ActionBarActivity implements VOIPObserver {
+public class MainActivity extends ActionBarActivity implements RTMessageObserver {
+
+    private final int REQUEST_VOIP = 1;
 
     private EditText myEditText;
     private EditText peerEditText;
@@ -48,6 +53,10 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
     private long myUID;
     private long peerUID;
     private String token;
+
+    private ArrayList<String> channelIDs = new ArrayList<>();
+
+    private boolean calling = false;
 
     ProgressDialog dialog;
     AsyncTask mLoginTask;
@@ -67,10 +76,10 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
         //app可以单独部署服务器，给予第三方应用更多的灵活性
         //在开发阶段也可以配置成测试环境的地址 "sandbox.voipnode.gobelieve.io", "sandbox.imnode.gobelieve.io"
         String sdkHost = "imnode2.gobelieve.io";
-        VOIPService.getInstance().setHost(sdkHost);
-        VOIPService.getInstance().setIsSync(false);
-        VOIPService.getInstance().registerConnectivityChangeReceiver(getApplicationContext());
-        VOIPService.getInstance().setDeviceID(androidID);
+        IMService.getInstance().setHost(sdkHost);
+        IMService.getInstance().setIsSync(false);
+        IMService.getInstance().registerConnectivityChangeReceiver(getApplicationContext());
+        IMService.getInstance().setDeviceID(androidID);
     }
 
 
@@ -125,17 +134,18 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                         //设置用户id,进入MainActivity
                         String token = result;
                         MainActivity.this.token = token;
-                        VOIPService.getInstance().setToken(token);
-                        VOIPService.getInstance().start();
+                        IMService.getInstance().setToken(token);
+                        IMService.getInstance().start();
+
+                        calling = true;
 
                         Intent intent = new Intent(MainActivity.this, VOIPVideoActivity.class);
-                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         intent.putExtra("peer_uid", peerUID);
                         intent.putExtra("peer_name", "测试");
                         intent.putExtra("current_uid", myUID);
                         intent.putExtra("token", token);
                         intent.putExtra("is_caller", true);
-                        startActivity(intent);
+                        startActivityForResult(intent, REQUEST_VOIP);
 
                     } else {
                         Toast.makeText(MainActivity.this, "登陆失败", Toast.LENGTH_SHORT).show();
@@ -177,17 +187,17 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                         //设置用户id,进入MainActivity
                         String token = result;
                         MainActivity.this.token = token;
-                        VOIPService.getInstance().setToken(token);
-                        VOIPService.getInstance().start();
+                        IMService.getInstance().setToken(token);
+                        IMService.getInstance().start();
 
+                        calling = true;
                         Intent intent = new Intent(MainActivity.this, VOIPVoiceActivity.class);
-                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         intent.putExtra("peer_uid", peerUID);
                         intent.putExtra("peer_name", "测试");
                         intent.putExtra("current_uid", myUID);
                         intent.putExtra("token", token);
                         intent.putExtra("is_caller", true);
-                        startActivity(intent);
+                        startActivityForResult(intent, REQUEST_VOIP);
 
                     } else {
                         Toast.makeText(MainActivity.this, "登陆失败", Toast.LENGTH_SHORT).show();
@@ -230,9 +240,9 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
                         //设置用户id,进入MainActivity
                         String token = result;
                         MainActivity.this.token = token;
-                        VOIPService.getInstance().setToken(token);
-                        VOIPService.getInstance().start();
-                        VOIPService.getInstance().pushVOIPObserver(MainActivity.this);
+                        IMService.getInstance().setToken(token);
+                        IMService.getInstance().start();
+                        IMService.getInstance().addRTObserver(MainActivity.this);
 
                         ProgressDialog dialog = ProgressDialog.show(MainActivity.this, null, "等待中...");
 
@@ -297,34 +307,67 @@ public class MainActivity extends ActionBarActivity implements VOIPObserver {
             return null;
         }
     }
-    public void onVOIPControl(VOIPControl ctl) {
-        VOIPCommand command = new VOIPCommand(ctl.content);
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        IMService.getInstance().stop();
+        calling = false;
+    }
+
+    @Override
+    public void onRTMessage(RTMessage rt) {
+        if (calling) {
+            return;
+        }
+        JSONObject obj = null;
+        try {
+            JSONObject json = new JSONObject(rt.content);
+            obj = json.getJSONObject("voip");
+        } catch (JSONException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        if (rt.sender != peerUID) {
+            return;
+        }
+
+        VOIPCommand command = new VOIPCommand(obj);
+
+        if (channelIDs.contains(command.channelID)) {
+            return;
+        }
         if (command.cmd == VOIPCommand.VOIP_COMMAND_DIAL) {
-            if (ctl.sender == peerUID) {
-                dialog.dismiss();
+            dialog.dismiss();
 
-                Intent intent = new Intent(MainActivity.this, VOIPVoiceActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.putExtra("peer_uid", peerUID);
-                intent.putExtra("peer_name", "测试");
-                intent.putExtra("current_uid", myUID);
-                intent.putExtra("token", token);
-                intent.putExtra("is_caller", false);
-                startActivity(intent);
-            }
+            calling = true;
+            channelIDs.add(command.channelID);
+
+            Intent intent = new Intent(MainActivity.this, VOIPVoiceActivity.class);
+            intent.putExtra("peer_uid", peerUID);
+            intent.putExtra("peer_name", "测试");
+            intent.putExtra("current_uid", myUID);
+            intent.putExtra("token", token);
+            intent.putExtra("is_caller", false);
+            intent.putExtra("channel_id", command.channelID);
+            startActivityForResult(intent, REQUEST_VOIP);
+
+
         } else if (command.cmd == VOIPCommand.VOIP_COMMAND_DIAL_VIDEO) {
-            if (ctl.sender == peerUID) {
-                dialog.dismiss();
+            dialog.dismiss();
 
-                Intent intent = new Intent(MainActivity.this, VOIPVideoActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.putExtra("peer_uid", peerUID);
-                intent.putExtra("peer_name", "测试");
-                intent.putExtra("current_uid", myUID);
-                intent.putExtra("token", token);
-                intent.putExtra("is_caller", false);
-                startActivity(intent);
-            }
+            calling = true;
+            channelIDs.add(command.channelID);
+
+            Intent intent = new Intent(MainActivity.this, VOIPVideoActivity.class);
+            intent.putExtra("peer_uid", peerUID);
+            intent.putExtra("peer_name", "测试");
+            intent.putExtra("current_uid", myUID);
+            intent.putExtra("token", token);
+            intent.putExtra("is_caller", false);
+            intent.putExtra("channel_id", command.channelID);
+            startActivityForResult(intent, REQUEST_VOIP);
+
         }
     }
 }

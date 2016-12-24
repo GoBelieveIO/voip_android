@@ -135,10 +135,7 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
         // Check for mandatory permissions.
         for (String permission : MANDATORY_PERMISSIONS) {
             if (checkCallingOrSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
-                Log.i(TAG, "Permission " + permission + " is not granted");
-                setResult(RESULT_CANCELED);
-                finish();
-                return;
+                Log.e(TAG, "Permission " + permission + " is not granted");
             }
         }
     }
@@ -364,10 +361,8 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
                 json.getString("id"), json.getInt("label"), json.getString("candidate"));
     }
 
-    protected void onMessage(String content) {
+    protected void processP2PMessage(JSONObject json) {
         try {
-            JSONObject json = new JSONObject(content);
-
             String type = json.optString("type");
             if (type.equals("candidate")) {
                 this.onRemoteIceCandidate(toJavaCandidate(json));
@@ -384,7 +379,7 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
                             SessionDescription.Type.fromCanonicalForm(type), json.getString("sdp"));
                     this.onRemoteDescription(sdp);
                 } else {
-                    reportError("Received answer for call initiator: " + content);
+                    reportError("Received answer for call initiator");
                 }
             } else if (type.equals("offer")) {
                 if (!this.isCaller) {
@@ -392,10 +387,10 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
                             SessionDescription.Type.fromCanonicalForm(type), json.getString("sdp"));
                     this.onRemoteDescription(sdp);
                 } else {
-                    reportError("Received offer for call receiver: " + content);
+                    reportError("Received offer for call receiver");
                 }
             } else {
-                reportError("Unexpected WebSocket message: " + content);
+                reportError("Unexpected WebSocket message");
             }
 
         } catch (JSONException e) {
@@ -466,7 +461,7 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
         peerConnectionClient.enableStatsEvents(true, STAT_CALLBACK_PERIOD);
     }
 
-    protected void sendRTMessage(JSONObject json) {
+    protected void sendP2PMessage(JSONObject json) {
 
     }
 
@@ -474,7 +469,7 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
         JSONObject json = new JSONObject();
         jsonPut(json, "sdp", sdp.description);
         jsonPut(json, "type", "offer");
-        sendRTMessage(json);
+        sendP2PMessage(json);
     }
 
     // Send local answer SDP to the other participant.
@@ -482,7 +477,7 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
         JSONObject json = new JSONObject();
         jsonPut(json, "sdp", sdp.description);
         jsonPut(json, "type", "answer");
-        sendRTMessage(json);
+        sendP2PMessage(json);
     }
 
     // Send Ice candidate to the other participant.
@@ -492,7 +487,7 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
         jsonPut(json, "label", candidate.sdpMLineIndex);
         jsonPut(json, "id", candidate.sdpMid);
         jsonPut(json, "candidate", candidate.sdp);
-        sendRTMessage(json);
+        sendP2PMessage(json);
     }
 
     // Send removed Ice candidates to the other participant.
@@ -506,7 +501,7 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
         }
         jsonPut(json, "candidates", jsonArray);
 
-        sendRTMessage(json);
+        sendP2PMessage(json);
     }
 
     // -----Implementation of PeerConnectionClient.PeerConnectionEvents.---------
@@ -668,8 +663,6 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
                 encoderStat.append("Actual BR: ").append(actualBitrate).append("\n");
             }
         }
-
-
         Log.i(TAG, encoderStat.toString());
     }
 

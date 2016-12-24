@@ -15,11 +15,14 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
+
+import com.beetle.im.IMService;
 import com.beetle.im.RTMessage;
 import com.beetle.im.RTMessageObserver;
 import com.beetle.im.Timer;
-import com.beetle.voip.VOIPService;
 import com.beetle.voip.VOIPSession;
+
+import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.Date;
 import static android.os.SystemClock.uptimeMillis;
@@ -40,6 +43,7 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
     protected VOIPSession voipSession;
     private boolean isConnected;
 
+    protected String channelID;
     protected long currentUID;
     protected long peerUID;
     protected String peerName;
@@ -60,13 +64,11 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
         }
 
         peerName = intent.getStringExtra("peer_name");
-
         if (peerName == null) {
             peerName = "";
         }
 
         currentUID = intent.getLongExtra("current_uid", 0);
-
         if (currentUID == 0) {
             Log.e(TAG, "peer uid is 0");
             return;
@@ -78,17 +80,23 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
             return;
         }
 
+        channelID = intent.getStringExtra("channel_id");
+        if (channelID == null) {
+            channelID = "";
+        }
+        Log.i(TAG, "channel id:" + channelID);
+
         long appid = APPID;
         long uid = this.currentUID;
 
         turnUserName = String.format("%d_%d", appid, uid);
         turnPassword = token;
 
-        voipSession = new VOIPSession(currentUID, peerUID);
+        voipSession = new VOIPSession(currentUID, peerUID, channelID);
         voipSession.setObserver(this);
 
-        VOIPService.getInstance().pushVOIPObserver(this.voipSession);
-        VOIPService.getInstance().addRTObserver(this);
+        IMService.getInstance().addRTObserver(this.voipSession);
+        IMService.getInstance().addRTObserver(this);
     }
 
 
@@ -107,8 +115,9 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
     @Override
     protected void onDestroy () {
         Log.i(TAG, "voip activity on destroy");
-        VOIPService.getInstance().removeRTObserver(this);
-        VOIPService.getInstance().popVOIPObserver(this.voipSession);
+        voipSession.close();
+        IMService.getInstance().removeRTObserver(this);
+        IMService.getInstance().removeRTObserver(this.voipSession);
         super.onDestroy();
     }
 
@@ -154,10 +163,12 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
         this.player = null;
         this.acceptButton.setEnabled(false);
         this.refuseButton.setEnabled(false);
+
+        dismiss();
     }
 
     private void dismiss() {
-        VOIPService.getInstance().stop();
+        setResult(RESULT_OK);
         finish();
     }
 
@@ -167,6 +178,7 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
         return headphone;
     }
 
+    //等待用户接听
     protected void waitAccept() {
         handUpButton.setVisibility(View.GONE);
         acceptButton.setVisibility(View.VISIBLE);
@@ -252,6 +264,7 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
 
         dismiss();
     }
+
     //对方挂断通话
     @Override
     public void onHangUp() {
@@ -291,7 +304,6 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
             this.player = null;
         }
 
-
         Log.i(TAG, "voip connected");
         startStream();
 
@@ -300,23 +312,29 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
         this.refuseButton.setVisibility(View.GONE);
 
         this.isConnected = true;
-
     }
+
     @Override
-    public void onRefuseFinshed() {
+    public void onDisconnect() {
+        stopStream();
         dismiss();
     }
 
-
     @Override
-    protected void sendRTMessage(JSONObject json) {
+    protected void sendP2PMessage(JSONObject json) {
         RTMessage rt = new RTMessage();
         rt.sender = this.currentUID;
         rt.receiver = this.peerUID;
-        rt.content = json.toString();
 
-        Log.i(TAG, "send rt message:" + rt.content);
-        VOIPService.getInstance().sendRTMessage(rt);
+        try {
+            JSONObject obj = new JSONObject();
+            obj.put("p2p", json);
+            rt.content = obj.toString();
+            Log.i(TAG, "send rt message:" + rt.content);
+            IMService.getInstance().sendRTMessage(rt);
+        } catch (JSONException e ) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -325,7 +343,14 @@ public class VOIPActivity extends WebRTCActivity implements VOIPSession.VOIPSess
             return;
         }
 
-        Log.i(TAG, "recv rt message:" + rt.content);
-        onMessage(rt.content);
+        try {
+            JSONObject json = new JSONObject(rt.content);
+            JSONObject obj = json.getJSONObject("p2p");
+            Log.i(TAG, "recv p2p message:" + rt.content);
+            processP2PMessage(obj);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
     }
 }

@@ -5,6 +5,7 @@ import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.TextUtils;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -14,6 +15,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import org.webrtc.EglBase;
+
+import java.util.UUID;
 
 
 /**
@@ -87,6 +90,10 @@ public class VOIPVoiceActivity extends VOIPActivity {
         // Create video renderers.
         rootEglBase = EglBase.create();
         if (isCaller) {
+            if (TextUtils.isEmpty(this.channelID)) {
+                this.channelID = UUID.randomUUID().toString();
+                this.voipSession.setChannelID(this.channelID);
+            }
             dial();
         } else {
             waitAccept();

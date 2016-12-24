@@ -1,15 +1,11 @@
 package io.gobelieve.voip_demo;
 
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.util.Log;
+import android.text.TextUtils;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -18,38 +14,12 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
-
-import com.beetle.im.RTMessage;
-import com.beetle.voip.VOIPService;
-
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.webrtc.Camera1Enumerator;
-import org.webrtc.Camera2Enumerator;
-import org.webrtc.CameraEnumerator;
 import org.webrtc.EglBase;
-import org.webrtc.FileVideoCapturer;
-import org.webrtc.IceCandidate;
-import org.webrtc.PeerConnection;
 import org.webrtc.RendererCommon;
-import org.webrtc.SessionDescription;
-import org.webrtc.StatsReport;
 import org.webrtc.SurfaceViewRenderer;
-import org.webrtc.VideoCapturer;
-import org.webrtc.VideoFileRenderer;
-import org.webrtc.VideoRenderer;
 
-
-import java.io.IOException;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 
 /**
@@ -157,18 +127,18 @@ public class VOIPVideoActivity extends VOIPActivity  {
         remoteRenderScreen.setOnClickListener(listener);
         remoteRenderers.add(remoteRenderScreen);
 
-
         // Create video renderers.
         rootEglBase = EglBase.create();
         localRender.init(rootEglBase.getEglBaseContext(), null);
-
         remoteRenderScreen.init(rootEglBase.getEglBaseContext(), null);
-
         localRender.setZOrderMediaOverlay(true);
-
         updateVideoView();
 
         if (isCaller) {
+            if (TextUtils.isEmpty(this.channelID)) {
+                this.channelID = UUID.randomUUID().toString();
+                this.voipSession.setChannelID(this.channelID);
+            }
             dial();
         } else {
             waitAccept();
