@@ -1,7 +1,9 @@
 package io.gobelieve.voip_demo;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -18,6 +20,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.beetle.im.Timer;
+import com.squareup.picasso.Picasso;
 
 import org.webrtc.EglBase;
 
@@ -30,6 +33,10 @@ import static android.os.SystemClock.uptimeMillis;
  * Created by houxh on 15/9/8.
  */
 public class VOIPVoiceActivity extends VOIPActivity {
+    private static final int PERMISSIONS_REQUEST_CAMERA = 1;
+    private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 2;
+
+    protected ImageView  headView;
 
     protected Button handUpButton;
     protected ImageButton refuseButton;
@@ -40,6 +47,7 @@ public class VOIPVoiceActivity extends VOIPActivity {
     protected Timer durationTimer;
 
     protected String peerName;
+    protected String peerAvatar;
 
     protected Handler sHandler;
 
@@ -97,6 +105,11 @@ public class VOIPVoiceActivity extends VOIPActivity {
             peerName = "";
         }
 
+        peerAvatar = intent.getStringExtra("peer_avatar");
+        if (peerAvatar == null) {
+            peerAvatar = "";
+        }
+
         currentUID = intent.getLongExtra("current_uid", 0);
         if (currentUID == 0) {
             Log.e(TAG, "peer uid is 0");
@@ -121,8 +134,6 @@ public class VOIPVoiceActivity extends VOIPActivity {
         turnUserName = String.format("%d_%d", appid, uid);
         turnPassword = token;
 
-
-
         sHandler = new Handler();
         sHandler.post(mHideRunnable);
         final View decorView = getWindow().getDecorView();
@@ -135,26 +146,61 @@ public class VOIPVoiceActivity extends VOIPActivity {
         };
         decorView.setOnSystemUiVisibilityChangeListener(sl);
 
-
         handUpButton = (Button)findViewById(R.id.hang_up);
         acceptButton = (ImageButton)findViewById(R.id.accept);
         refuseButton = (ImageButton)findViewById(R.id.refuse);
         durationTextView = (TextView)findViewById(R.id.duration);
 
-        ImageView header = (ImageView)findViewById(R.id.header);
-        header.setImageResource(R.drawable.avatar_contact);
+        headView = (ImageView)findViewById(R.id.header);
+        if (!TextUtils.isEmpty(peerAvatar)) {
+            Picasso.with(getBaseContext())
+                    .load(peerAvatar)
+                    .placeholder(R.drawable.avatar_contact)
+                    .into(headView);
+        }
 
         // Create video renderers.
         rootEglBase = EglBase.create();
+
+        requestPermission();
+
         if (isCaller) {
             if (TextUtils.isEmpty(this.channelID)) {
                 this.channelID = UUID.randomUUID().toString();
             }
-            dial();
+            handUpButton.setVisibility(View.VISIBLE);
+            acceptButton.setVisibility(View.GONE);
+            refuseButton.setVisibility(View.GONE);
+            dialVoice();
         } else {
-            waitAccept();
+            handUpButton.setVisibility(View.GONE);
+            acceptButton.setVisibility(View.VISIBLE);
+            refuseButton.setVisibility(View.VISIBLE);
         }
+    }
 
+    private void requestPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            int recordPermission = (checkSelfPermission(Manifest.permission.RECORD_AUDIO));
+
+            if (recordPermission != PackageManager.PERMISSION_GRANTED) {
+                try {
+                    this.requestPermissions(new String[]{Manifest.permission.CAMERA}, PERMISSIONS_REQUEST_CAMERA);
+                } catch (IllegalStateException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSIONS_REQUEST_CAMERA) {
+            Log.i(TAG, "camera permission:" + grantResults[0]);
+        } else if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO) {
+            Log.i(TAG, "record audio permission:" + grantResults[0]);
+        }
     }
 
     @Override
@@ -164,19 +210,6 @@ public class VOIPVoiceActivity extends VOIPActivity {
             hangup(null);
         }
         return super.onKeyDown(keyCode, event);
-    }
-
-    protected void dial() {
-        handUpButton.setVisibility(View.VISIBLE);
-        acceptButton.setVisibility(View.GONE);
-        refuseButton.setVisibility(View.GONE);
-        this.dialVoice();
-    }
-
-    protected void waitAccept() {
-        handUpButton.setVisibility(View.GONE);
-        acceptButton.setVisibility(View.VISIBLE);
-        refuseButton.setVisibility(View.VISIBLE);
     }
 
     @Override
@@ -226,7 +259,6 @@ public class VOIPVoiceActivity extends VOIPActivity {
 
     public void accept(View v) {
         Log.i(TAG, "accepting...");
-
         accept();
         this.acceptButton.setEnabled(false);
         this.refuseButton.setEnabled(false);

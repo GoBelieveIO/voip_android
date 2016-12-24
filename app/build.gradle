@@ -7,7 +7,7 @@ android {
 
     defaultConfig {
         applicationId "io.gobelieve.voip_demo"
-        minSdkVersion 11
+        minSdkVersion 12
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
@@ -40,6 +40,7 @@ android {
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
     compile 'com.android.support:appcompat-v7:23.0.1'
+    compile 'com.squareup.picasso:picasso:2.4.+'
     compile project(':asynctcp')
     compile project(':imsdk')
     compile files('src/main/libs/base_java.jar')

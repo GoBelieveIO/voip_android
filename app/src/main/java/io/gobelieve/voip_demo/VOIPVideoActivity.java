@@ -1,7 +1,13 @@
 package io.gobelieve.voip_demo;
 
+import android.Manifest;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.media.AudioManager;
 import android.os.Build;
@@ -20,6 +26,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.beetle.im.Timer;
+import com.squareup.picasso.Picasso;
 
 import org.webrtc.EglBase;
 import org.webrtc.RendererCommon;
@@ -34,16 +41,8 @@ import static android.os.SystemClock.uptimeMillis;
  * Created by houxh on 15/9/8.
  */
 public class VOIPVideoActivity extends VOIPActivity  {
-
-    protected Button handUpButton;
-    protected ImageButton refuseButton;
-    protected ImageButton acceptButton;
-
-    protected TextView durationTextView;
-    protected int duration;
-    protected Timer durationTimer;
-
-    protected String peerName;
+    private static final int PERMISSIONS_REQUEST_CAMERA = 1;
+    private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 2;
 
     // Local preview screen position before call is connected.
     private static final int LOCAL_X_CONNECTING = 0;
@@ -62,11 +61,28 @@ public class VOIPVideoActivity extends VOIPActivity  {
     private static final int REMOTE_HEIGHT = 100;
 
 
+    protected String peerName;
+    protected String peerAvatar;
+
+
+    protected int duration;
+    protected Timer durationTimer;
+
+    protected Button handUpButton;
+    protected ImageButton refuseButton;
+    protected ImageButton acceptButton;
+
+    protected TextView durationTextView;
+
     protected PercentFrameLayout localRenderLayout;
     protected PercentFrameLayout remoteRenderLayout;
     protected RendererCommon.ScalingType scalingType;
 
+    protected ImageView  headView;
+    private View controlView;
 
+
+    private MusicIntentReceiver headsetReceiver;
     protected Handler sHandler;
 
     Runnable mHideRunnable = new Runnable() {
@@ -102,6 +118,7 @@ public class VOIPVideoActivity extends VOIPActivity  {
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
         setContentView(R.layout.activity_voip_video);
+
         getIntent().putExtra(EXTRA_VIDEO_CALL, true);
         super.onCreate(savedInstanceState);
 
@@ -118,6 +135,11 @@ public class VOIPVideoActivity extends VOIPActivity  {
         peerName = intent.getStringExtra("peer_name");
         if (peerName == null) {
             peerName = "";
+        }
+
+        peerAvatar = intent.getStringExtra("peer_avatar");
+        if (peerAvatar == null) {
+            peerAvatar = "";
         }
 
         currentUID = intent.getLongExtra("current_uid", 0);
@@ -144,8 +166,6 @@ public class VOIPVideoActivity extends VOIPActivity  {
         turnUserName = String.format("%d_%d", appid, uid);
         turnPassword = token;
 
-
-
         sHandler = new Handler();
         sHandler.post(mHideRunnable);
         final View decorView = getWindow().getDecorView();
@@ -158,13 +178,21 @@ public class VOIPVideoActivity extends VOIPActivity  {
         };
         decorView.setOnSystemUiVisibilityChangeListener(sl);
 
+        controlView = findViewById(R.id.control);
         handUpButton = (Button)findViewById(R.id.hang_up);
         acceptButton = (ImageButton)findViewById(R.id.accept);
         refuseButton = (ImageButton)findViewById(R.id.refuse);
         durationTextView = (TextView)findViewById(R.id.duration);
 
-        ImageView header = (ImageView)findViewById(R.id.header);
-        header.setImageResource(R.drawable.avatar_contact);
+        headView = (ImageView)findViewById(R.id.header);
+
+        if (!TextUtils.isEmpty(peerAvatar)) {
+            Picasso.with(getBaseContext())
+                    .load(peerAvatar)
+                    .placeholder(R.drawable.avatar_contact)
+                    .into(headView);
+        }
+
 
         scalingType = RendererCommon.ScalingType.SCALE_ASPECT_FILL;
 
@@ -178,7 +206,7 @@ public class VOIPVideoActivity extends VOIPActivity  {
         View.OnClickListener listener = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
+                VOIPVideoActivity.this.showOrHideHangUp();
             }
         };
 
@@ -193,13 +221,54 @@ public class VOIPVideoActivity extends VOIPActivity  {
         localRender.setZOrderMediaOverlay(true);
         updateVideoView();
 
+        headsetReceiver = new MusicIntentReceiver();
+
+        requestPermission();
         if (isCaller) {
             if (TextUtils.isEmpty(this.channelID)) {
                 this.channelID = UUID.randomUUID().toString();
             }
-            dial();
+
+            handUpButton.setVisibility(View.VISIBLE);
+            acceptButton.setVisibility(View.GONE);
+            refuseButton.setVisibility(View.GONE);
+            this.dialVideo();
         } else {
-            waitAccept();
+            handUpButton.setVisibility(View.GONE);
+            acceptButton.setVisibility(View.VISIBLE);
+            refuseButton.setVisibility(View.VISIBLE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSIONS_REQUEST_CAMERA) {
+            Log.i(TAG, "camera permission:" + grantResults[0]);
+        } else if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO) {
+            Log.i(TAG, "record audio permission:" + grantResults[0]);
+        }
+    }
+
+    private void requestPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            int cameraPermission = (checkSelfPermission(Manifest.permission.CAMERA));
+            int recordPermission = (checkSelfPermission(Manifest.permission.RECORD_AUDIO));
+            if (cameraPermission != PackageManager.PERMISSION_GRANTED) {
+                try {
+                    this.requestPermissions(new String[]{Manifest.permission.CAMERA}, PERMISSIONS_REQUEST_CAMERA);
+                } catch (IllegalStateException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            if (recordPermission != PackageManager.PERMISSION_GRANTED) {
+                try {
+                    this.requestPermissions(new String[]{Manifest.permission.CAMERA}, PERMISSIONS_REQUEST_CAMERA);
+                } catch (IllegalStateException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
@@ -224,12 +293,6 @@ public class VOIPVideoActivity extends VOIPActivity  {
         }
     }
 
-    protected void dial() {
-        handUpButton.setVisibility(View.VISIBLE);
-        acceptButton.setVisibility(View.GONE);
-        refuseButton.setVisibility(View.GONE);
-        this.dialVideo();
-    }
 
     @Override
     protected void startStream() {
@@ -262,19 +325,18 @@ public class VOIPVideoActivity extends VOIPActivity  {
         this.durationTimer = null;
     }
 
-    protected void waitAccept() {
-        handUpButton.setVisibility(View.GONE);
-        acceptButton.setVisibility(View.VISIBLE);
-        refuseButton.setVisibility(View.VISIBLE);
-    }
-
     @Override
     public void onConnected() {
         super.onConnected();
 
+        localRender.setVisibility(View.VISIBLE);
+        remoteRenderScreen.setVisibility(View.VISIBLE);
         this.handUpButton.setVisibility(View.VISIBLE);
         this.acceptButton.setVisibility(View.GONE);
         this.refuseButton.setVisibility(View.GONE);
+        this.headView.setVisibility(View.GONE);
+
+        showOrHideHangUp();
     }
 
     public void hangup(View v) {
@@ -303,6 +365,42 @@ public class VOIPVideoActivity extends VOIPActivity  {
         dismiss();
     }
 
+    protected void showOrHideHangUp() {
+        if (controlView.getVisibility() == View.VISIBLE) {
+            hideHangUp();
+        } else {
+            showHangUp();
+        }
+    }
+    private void hideHangUp() {
+        controlView.setAlpha(1.0f);
+        controlView.animate()
+                .alpha(0.0f)
+                .setListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        super.onAnimationEnd(animation);
+                        controlView.setVisibility(View.GONE);
+                    }
+                });
+    }
+
+    private void showHangUp() {
+        controlView.setVisibility(View.VISIBLE);
+        controlView.setAlpha(0.0f);
+        controlView.animate()
+                .alpha(1.0f)
+                .setListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        super.onAnimationEnd(animation);
+                        controlView.setVisibility(View.VISIBLE);
+                        controlView.setAlpha(1.0f);
+                    }
+                });
+
+    }
+
     @Override
     protected void onDestroy () {
         super.onDestroy();
@@ -329,4 +427,37 @@ public class VOIPVideoActivity extends VOIPActivity  {
         remoteRenderScreen.requestLayout();
     }
 
+    @Override
+    public void onResume() {
+        IntentFilter filter = new IntentFilter(Intent.ACTION_HEADSET_PLUG);
+        registerReceiver(headsetReceiver, filter);
+        super.onResume();
+    }
+    @Override
+    public void onPause() {
+        unregisterReceiver(headsetReceiver);
+        super.onPause();
+    }
+
+    private class MusicIntentReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(Intent.ACTION_HEADSET_PLUG)) {
+                AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                int state = intent.getIntExtra("state", -1);
+                switch (state) {
+                    case 0:
+                        Log.d(TAG, "Headset is unplugged");
+                        audioManager.setSpeakerphoneOn(true);
+                        break;
+                    case 1:
+                        Log.d(TAG, "Headset is plugged");
+                        audioManager.setSpeakerphoneOn(false);
+                        break;
+                    default:
+                        Log.d(TAG, "I have no idea what the headset state is");
+                }
+            }
+        }
+    }
 }

@@ -25,21 +25,25 @@
             android:layout_height="wrap_content" />
     </io.gobelieve.voip_demo.PercentFrameLayout>
 
+
     <LinearLayout
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
+        android:id="@+id/control"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:orientation="vertical"
         android:paddingLeft="@dimen/activity_horizontal_margin"
         android:paddingRight="@dimen/activity_horizontal_margin"
         android:paddingTop="@dimen/activity_vertical_margin"
         android:paddingBottom="@dimen/activity_vertical_margin">
 
+
         <RelativeLayout
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
             android:layout_weight="1">
-            <Button
-                android:text="切换"
+
+
+            <ImageButton
                 android:id="@+id/switchButton"
                 android:onClick="switchCamera"
                 android:layout_width="wrap_content"
@@ -47,8 +51,8 @@
                 android:layout_alignParentRight="true"
                 android:layout_alignParentTop="true"
                 android:layout_marginRight="10dp"
-                android:layout_marginTop="10dp"
-                />
+                android:layout_marginTop="18dp"
+                android:background="@drawable/switch_camera" />
 
             <ImageView
                 android:id="@+id/header"
@@ -63,12 +67,16 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:layout_below="@+id/header"
-                android:layout_marginTop="30dp"
+                android:layout_marginTop="10dp"
                 android:text="00:00"
                 android:id="@+id/duration"
-                android:textSize="30sp" />
+                android:textSize="30sp"
+                android:textColor="#ff0bb227"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true"
+                android:visibility="invisible" />
+
+
         </RelativeLayout>
 
         <RelativeLayout
@@ -80,7 +88,6 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:layout_centerVertical="true">
-
                 <RelativeLayout
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
@@ -94,8 +101,8 @@
                         android:layout_centerVertical="true"
                         android:layout_centerHorizontal="true"
                         android:onClick="refuse" />
-                </RelativeLayout>
 
+                </RelativeLayout>
                 <RelativeLayout
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
@@ -108,22 +115,26 @@
                         android:id="@+id/accept"
                         android:layout_centerInParent="true"
                         android:onClick="accept"/>
-                </RelativeLayout>
 
+                </RelativeLayout>
             </LinearLayout>
+
+
             <Button
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
-                android:text="挂断"
-                android:id="@+id/hang_up"
-                android:onClick="hangup"
                 android:paddingLeft="60dp"
                 android:paddingRight="60dp"
-                android:textSize="30sp" />
+                android:id="@+id/hang_up"
+                android:onClick="hangup"
+                android:text="挂断"
+                android:textSize="30sp"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#ed3324" />
 
         </RelativeLayout>
-
-
     </LinearLayout>
+
+
 </FrameLayout>
