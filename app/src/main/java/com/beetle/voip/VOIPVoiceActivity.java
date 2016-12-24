@@ -1,7 +1,6 @@
-package io.gobelieve.voip_demo;
+package com.beetle.voip;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
@@ -25,6 +24,8 @@ import com.squareup.picasso.Picasso;
 import org.webrtc.EglBase;
 
 import java.util.UUID;
+
+import io.gobelieve.voip_demo.R;
 
 import static android.os.SystemClock.uptimeMillis;
 
@@ -215,7 +216,7 @@ public class VOIPVoiceActivity extends VOIPActivity {
     @Override
     protected void startStream() {
         super.startStream();
-        AudioManager am = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        AudioManager am = (AudioManager)getSystemService(AUDIO_SERVICE);
         am.setSpeakerphoneOn(false);
         am.setMode(AudioManager.MODE_IN_COMMUNICATION);
 

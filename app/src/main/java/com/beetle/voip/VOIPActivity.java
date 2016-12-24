@@ -1,4 +1,4 @@
-package io.gobelieve.voip_demo;
+package com.beetle.voip;
 
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
@@ -14,6 +14,9 @@ import com.beetle.im.Timer;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.Date;
+
+import io.gobelieve.voip_demo.R;
+
 import static android.os.SystemClock.uptimeMillis;
 
 public class VOIPActivity extends WebRTCActivity implements RTMessageObserver  {

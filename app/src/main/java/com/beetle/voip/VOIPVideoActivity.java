@@ -1,4 +1,4 @@
-package io.gobelieve.voip_demo;
+package com.beetle.voip;
 
 import android.Manifest;
 import android.animation.Animator;
@@ -33,6 +33,8 @@ import org.webrtc.RendererCommon;
 import org.webrtc.SurfaceViewRenderer;
 
 import java.util.UUID;
+
+import io.gobelieve.voip_demo.R;
 
 import static android.os.SystemClock.uptimeMillis;
 
@@ -300,7 +302,7 @@ public class VOIPVideoActivity extends VOIPActivity  {
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        AudioManager am = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        AudioManager am = (AudioManager)getSystemService(AUDIO_SERVICE);
         am.setSpeakerphoneOn(true);
         am.setMode(AudioManager.MODE_IN_COMMUNICATION);
 
@@ -443,7 +445,7 @@ public class VOIPVideoActivity extends VOIPActivity  {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent.getAction().equals(Intent.ACTION_HEADSET_PLUG)) {
-                AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
                 int state = intent.getIntExtra("state", -1);
                 switch (state) {
                     case 0:

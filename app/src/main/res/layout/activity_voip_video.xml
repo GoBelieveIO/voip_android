@@ -5,7 +5,7 @@
     >
 
 
-    <io.gobelieve.voip_demo.PercentFrameLayout
+    <com.beetle.voip.PercentFrameLayout
         android:id="@+id/remote_video_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -13,9 +13,9 @@
             android:id="@+id/remote_video_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
-    </io.gobelieve.voip_demo.PercentFrameLayout>
+    </com.beetle.voip.PercentFrameLayout>
 
-    <io.gobelieve.voip_demo.PercentFrameLayout
+    <com.beetle.voip.PercentFrameLayout
         android:id="@+id/local_video_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -23,7 +23,7 @@
             android:id="@+id/local_video_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
-    </io.gobelieve.voip_demo.PercentFrameLayout>
+    </com.beetle.voip.PercentFrameLayout>
 
 
     <LinearLayout

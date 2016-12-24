@@ -1,4 +1,4 @@
-package io.gobelieve.voip_demo;
+package com.beetle.voip;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -31,6 +31,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import io.gobelieve.voip_demo.R;
 
 
 /**

@@ -1,4 +1,4 @@
-package io.gobelieve.voip_demo;
+package com.beetle.voip;
 
 import android.content.Context;
 import android.os.Environment;

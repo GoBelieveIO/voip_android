@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-package io.gobelieve.voip_demo;
+package com.beetle.voip;
 
 import android.content.Context;
 import android.util.AttributeSet;

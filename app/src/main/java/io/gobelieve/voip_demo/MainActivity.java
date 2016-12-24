@@ -16,6 +16,10 @@ import android.widget.Toast;
 import com.beetle.im.IMService;
 import com.beetle.im.RTMessage;
 import com.beetle.im.RTMessageObserver;
+import com.beetle.voip.VOIPActivity;
+import com.beetle.voip.VOIPCommand;
+import com.beetle.voip.VOIPVideoActivity;
+import com.beetle.voip.VOIPVoiceActivity;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -309,6 +313,11 @@ public class MainActivity extends ActionBarActivity implements RTMessageObserver
         if (calling) {
             return;
         }
+
+        if (VOIPActivity.activityCount > 0) {
+            return;
+        }
+
         JSONObject obj = null;
         try {
             JSONObject json = new JSONObject(rt.content);

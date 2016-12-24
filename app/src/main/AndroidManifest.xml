@@ -30,13 +30,13 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="io.gobelieve.voip_demo.VOIPVoiceActivity"
+            android:name="io.gobelieve.voip_demo.com.beetle.voip.VOIPVoiceActivity"
             android:screenOrientation="portrait"
             android:label="voip" >
         </activity>
 
         <activity
-            android:name="io.gobelieve.voip_demo.VOIPVideoActivity"
+            android:name="io.gobelieve.voip_demo.com.beetle.voip.VOIPVideoActivity"
             android:screenOrientation="portrait"
             android:label="voip" >
         </activity>

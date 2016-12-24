@@ -1,11 +1,7 @@
-package io.gobelieve.voip_demo;
-
-import com.beetle.im.BytePacket;
+package com.beetle.voip;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.util.Arrays;
 
 /**
  * Created by houxh on 16/2/2.
