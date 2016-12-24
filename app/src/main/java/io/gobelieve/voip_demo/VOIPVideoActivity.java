@@ -1,11 +1,15 @@
 package io.gobelieve.voip_demo;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.res.Configuration;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -15,17 +19,31 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.beetle.im.Timer;
+
 import org.webrtc.EglBase;
 import org.webrtc.RendererCommon;
 import org.webrtc.SurfaceViewRenderer;
 
 import java.util.UUID;
 
+import static android.os.SystemClock.uptimeMillis;
+
 
 /**
  * Created by houxh on 15/9/8.
  */
 public class VOIPVideoActivity extends VOIPActivity  {
+
+    protected Button handUpButton;
+    protected ImageButton refuseButton;
+    protected ImageButton acceptButton;
+
+    protected TextView durationTextView;
+    protected int duration;
+    protected Timer durationTimer;
+
+    protected String peerName;
 
     // Local preview screen position before call is connected.
     private static final int LOCAL_X_CONNECTING = 0;
@@ -87,6 +105,47 @@ public class VOIPVideoActivity extends VOIPActivity  {
         getIntent().putExtra(EXTRA_VIDEO_CALL, true);
         super.onCreate(savedInstanceState);
 
+        Intent intent = getIntent();
+
+        isCaller = intent.getBooleanExtra("is_caller", false);
+        peerUID = intent.getLongExtra("peer_uid", 0);
+
+        if (peerUID == 0) {
+            Log.e(TAG, "peer uid is 0");
+            return;
+        }
+
+        peerName = intent.getStringExtra("peer_name");
+        if (peerName == null) {
+            peerName = "";
+        }
+
+        currentUID = intent.getLongExtra("current_uid", 0);
+        if (currentUID == 0) {
+            Log.e(TAG, "peer uid is 0");
+            return;
+        }
+
+        String token = intent.getStringExtra("token");
+        if (TextUtils.isEmpty(token)) {
+            Log.e(TAG, "token is empty");
+            return;
+        }
+
+        channelID = intent.getStringExtra("channel_id");
+        if (channelID == null) {
+            channelID = "";
+        }
+        Log.i(TAG, "channel id:" + channelID);
+
+        long appid = APPID;
+        long uid = this.currentUID;
+
+        turnUserName = String.format("%d_%d", appid, uid);
+        turnPassword = token;
+
+
+
         sHandler = new Handler();
         sHandler.post(mHideRunnable);
         final View decorView = getWindow().getDecorView();
@@ -137,7 +196,6 @@ public class VOIPVideoActivity extends VOIPActivity  {
         if (isCaller) {
             if (TextUtils.isEmpty(this.channelID)) {
                 this.channelID = UUID.randomUUID().toString();
-                this.voipSession.setChannelID(this.channelID);
             }
             dial();
         } else {
@@ -145,22 +203,104 @@ public class VOIPVideoActivity extends VOIPActivity  {
         }
     }
 
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if(keyCode == KeyEvent.KEYCODE_BACK) {
+            Log.i(TAG, "keycode back");
+            hangup(null);
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+
+        // Checks the orientation of the screen
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            Log.i(TAG, "landscape");
+        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT){
+            Log.i(TAG, "portrait");
+        }
+    }
+
     protected void dial() {
-        super.dial();
-        this.voipSession.dialVideo();
+        handUpButton.setVisibility(View.VISIBLE);
+        acceptButton.setVisibility(View.GONE);
+        refuseButton.setVisibility(View.GONE);
+        this.dialVideo();
     }
 
     @Override
     protected void startStream() {
         super.startStream();
+
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         AudioManager am = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
         am.setSpeakerphoneOn(true);
         am.setMode(AudioManager.MODE_IN_COMMUNICATION);
+
+        this.duration = 0;
+        this.durationTimer = new Timer() {
+            @Override
+            protected void fire() {
+                VOIPVideoActivity.this.duration += 1;
+                String text = String.format("%02d:%02d", VOIPVideoActivity.this.duration/60, VOIPVideoActivity.this.duration%60);
+                durationTextView.setText(text);
+            }
+        };
+        this.durationTimer.setTimer(uptimeMillis()+1000, 1000);
+        this.durationTimer.resume();
     }
 
+    @Override
+    protected void stopStream() {
+        super.stopStream();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        this.durationTimer.suspend();
+        this.durationTimer = null;
+    }
 
     protected void waitAccept() {
-        super.waitAccept();
+        handUpButton.setVisibility(View.GONE);
+        acceptButton.setVisibility(View.VISIBLE);
+        refuseButton.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public void onConnected() {
+        super.onConnected();
+
+        this.handUpButton.setVisibility(View.VISIBLE);
+        this.acceptButton.setVisibility(View.GONE);
+        this.refuseButton.setVisibility(View.GONE);
+    }
+
+    public void hangup(View v) {
+        Log.i(TAG, "hangup...");
+        hangup();
+        if (isConnected) {
+            stopStream();
+        }
+        dismiss();
+    }
+
+    public void accept(View v) {
+        Log.i(TAG, "accepting...");
+        accept();
+        this.acceptButton.setEnabled(false);
+        this.refuseButton.setEnabled(false);
+    }
+
+    public void refuse(View v) {
+        Log.i(TAG, "refuse...");
+
+        refuse();
+        this.acceptButton.setEnabled(false);
+        this.refuseButton.setEnabled(false);
+
+        dismiss();
     }
 
     @Override

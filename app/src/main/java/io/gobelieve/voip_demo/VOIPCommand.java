@@ -1,4 +1,4 @@
-package com.beetle.voip;
+package io.gobelieve.voip_demo;
 
 import com.beetle.im.BytePacket;
 

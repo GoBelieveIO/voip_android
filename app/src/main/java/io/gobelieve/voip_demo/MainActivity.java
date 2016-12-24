@@ -16,10 +16,6 @@ import android.widget.Toast;
 import com.beetle.im.IMService;
 import com.beetle.im.RTMessage;
 import com.beetle.im.RTMessageObserver;
-import com.beetle.im.SystemMessageObserver;
-import com.beetle.voip.VOIPCommand;
-import com.beetle.im.VOIPControl;
-import com.beetle.im.VOIPObserver;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -32,15 +28,9 @@ import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HTTP;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.webrtc.MediaCodecVideoDecoder;
-import org.webrtc.MediaCodecVideoEncoder;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
-
-import android.util.Log;
 
 public class MainActivity extends ActionBarActivity implements RTMessageObserver {
 

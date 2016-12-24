@@ -42,7 +42,6 @@ dependencies {
     compile 'com.android.support:appcompat-v7:23.0.1'
     compile project(':asynctcp')
     compile project(':imsdk')
-    compile project(':voipsession')
     compile files('src/main/libs/base_java.jar')
     compile files('src/main/libs/libjingle_peerconnection_java.jar')
 }
