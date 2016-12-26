@@ -173,20 +173,19 @@ public class VOIPVideoActivity extends VOIPActivity  {
         final View decorView = getWindow().getDecorView();
         View.OnSystemUiVisibilityChangeListener sl = new View.OnSystemUiVisibilityChangeListener() {
             @Override
-            public void onSystemUiVisibilityChange(int visibility)
-            {
+            public void onSystemUiVisibilityChange(int visibility) {
                 sHandler.post(mHideRunnable);
             }
         };
         decorView.setOnSystemUiVisibilityChangeListener(sl);
 
         controlView = findViewById(R.id.control);
-        handUpButton = (Button)findViewById(R.id.hang_up);
+        handUpButton = (Button) findViewById(R.id.hang_up);
         acceptButton = (ImageButton)findViewById(R.id.accept);
         refuseButton = (ImageButton)findViewById(R.id.refuse);
         durationTextView = (TextView)findViewById(R.id.duration);
 
-        headView = (ImageView)findViewById(R.id.header);
+        headView = (ImageView) findViewById(R.id.header);
 
         if (!TextUtils.isEmpty(peerAvatar)) {
             Picasso.with(getBaseContext())
@@ -225,20 +224,22 @@ public class VOIPVideoActivity extends VOIPActivity  {
 
         headsetReceiver = new MusicIntentReceiver();
 
+        if (isCaller) {
+            handUpButton.setVisibility(View.VISIBLE);
+            acceptButton.setVisibility(View.GONE);
+            refuseButton.setVisibility(View.GONE);
+        } else {
+            handUpButton.setVisibility(View.GONE);
+            acceptButton.setVisibility(View.VISIBLE);
+            refuseButton.setVisibility(View.VISIBLE);
+        }
+
         requestPermission();
         if (isCaller) {
             if (TextUtils.isEmpty(this.channelID)) {
                 this.channelID = UUID.randomUUID().toString();
             }
-
-            handUpButton.setVisibility(View.VISIBLE);
-            acceptButton.setVisibility(View.GONE);
-            refuseButton.setVisibility(View.GONE);
             this.dialVideo();
-        } else {
-            handUpButton.setVisibility(View.GONE);
-            acceptButton.setVisibility(View.VISIBLE);
-            refuseButton.setVisibility(View.VISIBLE);
         }
     }
 
