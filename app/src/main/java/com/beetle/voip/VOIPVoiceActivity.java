@@ -33,7 +33,7 @@ import static android.os.SystemClock.uptimeMillis;
 /**
  * Created by houxh on 15/9/8.
  */
-public class VOIPVoiceActivity extends VOIPActivity {
+public class VOIPVoiceActivity extends CallActivity {
     private static final int PERMISSIONS_REQUEST_CAMERA = 1;
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 2;
 
@@ -89,7 +89,7 @@ public class VOIPVoiceActivity extends VOIPActivity {
 
         getIntent().putExtra(EXTRA_VIDEO_CALL, false);
 
-        super.onCreate(savedInstanceState);
+
 
         Intent intent = getIntent();
 
@@ -124,8 +124,9 @@ public class VOIPVoiceActivity extends VOIPActivity {
         }
 
         channelID = intent.getStringExtra("channel_id");
-        if (channelID == null) {
-            channelID = "";
+        if (TextUtils.isEmpty(channelID)) {
+            Log.e(TAG, "channel id is empty");
+            return;
         }
         Log.i(TAG, "channel id:" + channelID);
 
@@ -134,6 +135,8 @@ public class VOIPVoiceActivity extends VOIPActivity {
 
         turnUserName = String.format("%d_%d", appid, uid);
         turnPassword = token;
+
+        super.onCreate(savedInstanceState);
 
         sHandler = new Handler();
         sHandler.post(mHideRunnable);

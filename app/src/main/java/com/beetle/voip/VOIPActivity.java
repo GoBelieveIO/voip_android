@@ -41,8 +41,10 @@ public class VOIPActivity extends WebRTCActivity implements RTMessageObserver  {
 
         if (isCaller) {
             playOutgoingCall();
+            state = VOIP_DIALING;
         } else {
             playIncomingCall();
+            state = VOIP_ACCEPTING;
         }
     }
 
