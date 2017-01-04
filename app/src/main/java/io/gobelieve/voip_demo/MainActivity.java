@@ -35,6 +35,7 @@ import org.json.JSONObject;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class MainActivity extends ActionBarActivity implements RTMessageObserver {
 
@@ -137,6 +138,7 @@ public class MainActivity extends ActionBarActivity implements RTMessageObserver
                         intent.putExtra("peer_uid", peerUID);
                         intent.putExtra("peer_name", "测试");
                         intent.putExtra("current_uid", myUID);
+                        intent.putExtra("channel_id", UUID.randomUUID().toString());
                         intent.putExtra("token", token);
                         intent.putExtra("is_caller", true);
                         startActivityForResult(intent, REQUEST_VOIP);
@@ -189,6 +191,7 @@ public class MainActivity extends ActionBarActivity implements RTMessageObserver
                         intent.putExtra("peer_uid", peerUID);
                         intent.putExtra("peer_name", "测试");
                         intent.putExtra("current_uid", myUID);
+                        intent.putExtra("channel_id", UUID.randomUUID().toString());
                         intent.putExtra("token", token);
                         intent.putExtra("is_caller", true);
                         startActivityForResult(intent, REQUEST_VOIP);
