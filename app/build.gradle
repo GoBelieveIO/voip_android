@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 23
-    buildToolsVersion "23.0.2"
+    buildToolsVersion '25.0.0'
     useLibrary  'org.apache.http.legacy'
 
     defaultConfig {
@@ -49,10 +49,12 @@ android {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.android.support:appcompat-v7:23.0.1'
+    compile 'com.android.support:appcompat-v7:23.+'
     compile 'com.squareup.picasso:picasso:2.4.+'
     compile project(':asynctcp')
     compile project(':imsdk')
     compile files('src/main/libs/base_java.jar')
     compile files('src/main/libs/libjingle_peerconnection_java.jar')
+    compile files('src/main/libs/audio_device_java.jar')
+    compile files('src/main/libs/libjingle_peerconnection_metrics_default_java.jar')
 }

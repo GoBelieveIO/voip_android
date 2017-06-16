@@ -11,13 +11,13 @@ import org.webrtc.CameraVideoCapturer;
 import org.webrtc.DataChannel;
 import org.webrtc.EglBase;
 import org.webrtc.IceCandidate;
-import org.webrtc.Logging;
 import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnection.IceConnectionState;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.RtpParameters;
+import org.webrtc.RtpReceiver;
 import org.webrtc.RtpSender;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
@@ -494,8 +494,8 @@ public class PeerConnectionClient {
 
         // Set default WebRTC tracing and INFO libjingle logging.
         // NOTE: this _must_ happen while |factory| is alive!
-        Logging.enableTracing("logcat:", EnumSet.of(Logging.TraceLevel.TRACE_DEFAULT));
-        Logging.enableLogToDebugOutput(Logging.Severity.LS_INFO);
+//        Logging.enableTracing("logcat:", EnumSet.of(Logging.TraceLevel.TRACE_DEFAULT));
+//        Logging.enableLogToDebugOutput(Logging.Severity.LS_INFO);
 
         mediaStream = factory.createLocalMediaStream("ARDAMS");
         if (videoCallEnabled) {
@@ -1117,6 +1117,11 @@ public class PeerConnectionClient {
         public void onRenegotiationNeeded() {
             // No need to do anything; AppRTC follows a pre-agreed-upon
             // signaling/negotiation protocol.
+        }
+
+        @Override
+        public void onAddTrack(RtpReceiver var1, MediaStream[] var2) {
+
         }
     }
 
