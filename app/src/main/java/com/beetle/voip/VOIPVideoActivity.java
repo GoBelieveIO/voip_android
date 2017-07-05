@@ -45,6 +45,7 @@ import static android.os.SystemClock.uptimeMillis;
 public class VOIPVideoActivity extends CallActivity  {
     private static final int PERMISSIONS_REQUEST_CAMERA = 1;
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 2;
+    private static final int PERMISSIONS_REQUEST_MEDIA = 3;
 
     // Local preview screen position before call is connected.
     private static final int LOCAL_X_CONNECTING = 0;
@@ -246,9 +247,17 @@ public class VOIPVideoActivity extends CallActivity  {
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSIONS_REQUEST_CAMERA) {
-            Log.i(TAG, "camera permission:" + grantResults[0]);
+            if (grantResults.length > 0) {
+                Log.i(TAG, "camera permission:" + grantResults[0]);
+            }
         } else if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO) {
-            Log.i(TAG, "record audio permission:" + grantResults[0]);
+            if (grantResults.length > 0) {
+                Log.i(TAG, "record audio permission:" + grantResults[0]);
+            }
+        } else if (requestCode == PERMISSIONS_REQUEST_MEDIA) {
+            for (int i = 0; i < grantResults.length; i++) {
+                Log.i(TAG, "media permission:" +  permissions[i] + " result:" + grantResults[0]);
+            }
         }
     }
 
@@ -256,6 +265,16 @@ public class VOIPVideoActivity extends CallActivity  {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             int cameraPermission = (checkSelfPermission(Manifest.permission.CAMERA));
             int recordPermission = (checkSelfPermission(Manifest.permission.RECORD_AUDIO));
+
+            if (cameraPermission != PackageManager.PERMISSION_GRANTED &&
+                    recordPermission != PackageManager.PERMISSION_GRANTED) {
+                try {
+                    this.requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO},
+                            PERMISSIONS_REQUEST_MEDIA);
+                } catch (IllegalStateException e) {
+                    e.printStackTrace();
+                }
+            }
             if (cameraPermission != PackageManager.PERMISSION_GRANTED) {
                 try {
                     this.requestPermissions(new String[]{Manifest.permission.CAMERA}, PERMISSIONS_REQUEST_CAMERA);
