@@ -1,14 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 23
+    compileSdkVersion 24
     buildToolsVersion '27.0.3'
     useLibrary  'org.apache.http.legacy'
 
     defaultConfig {
         applicationId "io.gobelieve.voip_demo"
-        minSdkVersion 14
-        targetSdkVersion 23
+        minSdkVersion 19
+        targetSdkVersion 24
         versionCode 1
         versionName "1.0"
     }
@@ -49,11 +49,9 @@ android {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.android.support:appcompat-v7:23.+'
+    compile 'com.android.support:appcompat-v7:24.2.0'
     compile 'com.squareup.picasso:picasso:2.4.+'
-    compile project(':asynctcp')
-    compile project(':imsdk')
-    compile files('src/main/libs/base_java.jar')
-    compile files('src/main/libs/audio_device_java.jar')
 
+
+    compile project(':voip')
 }

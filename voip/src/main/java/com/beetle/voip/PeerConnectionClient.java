@@ -338,7 +338,6 @@ public class PeerConnectionClient {
                 preferredVideoCodec = VIDEO_CODEC_H264;
             }
         }
-        preferredVideoCodec = VIDEO_CODEC_H264;
         Log.d(TAG, "Pereferred video codec: " + preferredVideoCodec);
 
         // Check if ISAC is used by default.
@@ -499,7 +498,7 @@ public class PeerConnectionClient {
 
         mediaStream = factory.createLocalMediaStream("ARDAMS");
         if (videoCallEnabled) {
-            //mediaStream.addTrack(createVideoTrack(videoCapturer));
+            mediaStream.addTrack(createVideoTrack(videoCapturer));
         }
 
         mediaStream.addTrack(createAudioTrack());

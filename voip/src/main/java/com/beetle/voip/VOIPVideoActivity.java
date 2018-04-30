@@ -34,7 +34,7 @@ import org.webrtc.SurfaceViewRenderer;
 
 import java.util.UUID;
 
-import io.gobelieve.voip_demo.R;
+
 
 import static android.os.SystemClock.uptimeMillis;
 

@@ -25,7 +25,7 @@ import org.webrtc.EglBase;
 
 import java.util.UUID;
 
-import io.gobelieve.voip_demo.R;
+
 
 import static android.os.SystemClock.uptimeMillis;
 

@@ -1,1 +1,1 @@
-include ':app', ':asynctcp',  ':imsdk'
+include ':app', ':asynctcp',  ':imsdk', ':voip'
