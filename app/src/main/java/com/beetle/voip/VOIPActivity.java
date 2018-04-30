@@ -177,6 +177,7 @@ public class VOIPActivity extends WebRTCActivity implements RTMessageObserver  {
         try {
             JSONObject obj = new JSONObject();
             obj.put("p2p", json);
+            obj.put("camera_id", "camera1");
             rt.content = obj.toString();
             Log.i(TAG, "send rt message:" + rt.content);
             IMService.getInstance().sendRTMessage(rt);
@@ -430,6 +431,7 @@ public class VOIPActivity extends WebRTCActivity implements RTMessageObserver  {
             }
             JSONObject json = new JSONObject();
             json.put("voip", obj);
+            json.put("camera_id", "camera1");
             rt.content = json.toString();
             IMService.getInstance().sendRTMessage(rt);
         } catch (JSONException e) {
@@ -479,6 +481,7 @@ public class VOIPActivity extends WebRTCActivity implements RTMessageObserver  {
             }
             JSONObject json = new JSONObject();
             json.put("voip", obj);
+            json.put("camera_id", "camera1");
             rt.content = json.toString();
             IMService.getInstance().sendRTMessage(rt);
         } catch (JSONException e) {

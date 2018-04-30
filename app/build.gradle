@@ -2,12 +2,12 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 23
-    buildToolsVersion '25.0.0'
+    buildToolsVersion '27.0.3'
     useLibrary  'org.apache.http.legacy'
 
     defaultConfig {
         applicationId "io.gobelieve.voip_demo"
-        minSdkVersion 12
+        minSdkVersion 14
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
@@ -23,8 +23,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_7
-        targetCompatibility JavaVersion.VERSION_1_7
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
     buildTypes {
         debug {
@@ -54,7 +54,6 @@ dependencies {
     compile project(':asynctcp')
     compile project(':imsdk')
     compile files('src/main/libs/base_java.jar')
-    compile files('src/main/libs/libjingle_peerconnection_java.jar')
     compile files('src/main/libs/audio_device_java.jar')
-    compile files('src/main/libs/libjingle_peerconnection_metrics_default_java.jar')
+
 }

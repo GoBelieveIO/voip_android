@@ -291,6 +291,7 @@ public class PeerConnectionClient {
         this.localRender = localRender;
         this.remoteRenders = remoteRenders;
         this.videoCapturer = videoCapturer;
+
         executor.execute(new Runnable() {
             @Override
             public void run() {
@@ -319,7 +320,6 @@ public class PeerConnectionClient {
     }
 
     private void createPeerConnectionFactoryInternal(Context context) {
-        PeerConnectionFactory.initializeInternalTracer();
         if (peerConnectionParameters.tracing) {
             PeerConnectionFactory.startInternalTracingCapture(
                     Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator
@@ -328,9 +328,6 @@ public class PeerConnectionClient {
         Log.d(TAG,
                 "Create peer connection factory. Use video: " + peerConnectionParameters.videoCallEnabled);
         isError = false;
-
-        // Initialize field trials.
-        PeerConnectionFactory.initializeFieldTrials("");
 
         // Check preferred video codec.
         preferredVideoCodec = VIDEO_CODEC_VP8;
@@ -341,6 +338,7 @@ public class PeerConnectionClient {
                 preferredVideoCodec = VIDEO_CODEC_H264;
             }
         }
+        preferredVideoCodec = VIDEO_CODEC_H264;
         Log.d(TAG, "Pereferred video codec: " + preferredVideoCodec);
 
         // Check if ISAC is used by default.
@@ -380,16 +378,18 @@ public class PeerConnectionClient {
             WebRtcAudioUtils.setWebRtcBasedNoiseSuppressor(false);
         }
 
-        // Create peer connection factory.
-        if (!PeerConnectionFactory.initializeAndroidGlobals(
-                context, true, true, peerConnectionParameters.videoCodecHwAcceleration)) {
-            events.onPeerConnectionError("Failed to initializeAndroidGlobals");
-        }
+
+        PeerConnectionFactory.InitializationOptions.Builder builder = PeerConnectionFactory.InitializationOptions.builder(context.getApplicationContext());
+        builder.setEnableVideoHwAcceleration(peerConnectionParameters.videoCodecHwAcceleration);
+        PeerConnectionFactory.InitializationOptions initOptions = builder.createInitializationOptions();
+        PeerConnectionFactory.initialize(initOptions);
+
         if (options != null) {
             Log.d(TAG, "Factory networkIgnoreMask option: " + options.networkIgnoreMask);
         }
         factory = new PeerConnectionFactory(options);
         Log.d(TAG, "Peer connection factory created.");
+
     }
 
     private void createMediaConstraintsInternal() {
@@ -499,7 +499,7 @@ public class PeerConnectionClient {
 
         mediaStream = factory.createLocalMediaStream("ARDAMS");
         if (videoCallEnabled) {
-            mediaStream.addTrack(createVideoTrack(videoCapturer));
+            //mediaStream.addTrack(createVideoTrack(videoCapturer));
         }
 
         mediaStream.addTrack(createAudioTrack());
@@ -737,6 +737,8 @@ public class PeerConnectionClient {
                 if (videoCallEnabled) {
                     sdpDescription = preferCodec(sdpDescription, preferredVideoCodec, false);
                 }
+                Log.i(TAG, "remote sdp:" + sdpDescription);
+
                 if (peerConnectionParameters.audioStartBitrate > 0) {
                     sdpDescription = setStartBitrate(
                             AUDIO_CODEC_OPUS, false, sdpDescription, peerConnectionParameters.audioStartBitrate);
