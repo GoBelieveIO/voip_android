@@ -32,4 +32,6 @@ dependencies {
 
     implementation project(':asynctcp')
     api project(':imsdk')
+
+    compile files('libs/libwebrtc.jar')
 }
