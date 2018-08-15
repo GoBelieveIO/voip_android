@@ -13,6 +13,7 @@ import com.beetle.AsyncTCP;
 import com.beetle.TCPConnectCallback;
 import com.beetle.TCPReadCallback;
 
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -571,9 +572,15 @@ public class IMService {
 
             private String lookupHost(String host) {
                 try {
-                    InetAddress inetAddress = InetAddress.getByName(host);
-                    Log.i(TAG, "host name:" + inetAddress.getHostName() + " " + inetAddress.getHostAddress());
-                    return inetAddress.getHostAddress();
+                    InetAddress[] inetAddresses = InetAddress.getAllByName(host);
+                    for (int i = 0; i < inetAddresses.length; i++) {
+                        InetAddress inetAddress = inetAddresses[i];
+                        Log.i(TAG, "host name:" + inetAddress.getHostName() + " " + inetAddress.getHostAddress());
+                        if (inetAddress instanceof Inet4Address) {
+                            return inetAddress.getHostAddress();
+                        }
+                    }
+                    return "";
                 } catch (UnknownHostException exception) {
                     exception.printStackTrace();
                     return "";
