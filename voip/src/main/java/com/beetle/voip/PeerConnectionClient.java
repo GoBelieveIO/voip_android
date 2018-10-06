@@ -443,7 +443,17 @@ public class PeerConnectionClient {
                     new MediaConstraints.KeyValuePair(AUDIO_HIGH_PASS_FILTER_CONSTRAINT, "false"));
             audioConstraints.mandatory.add(
                     new MediaConstraints.KeyValuePair(AUDIO_NOISE_SUPPRESSION_CONSTRAINT, "false"));
+        } else {
+            audioConstraints.mandatory.add(
+                    new MediaConstraints.KeyValuePair(AUDIO_ECHO_CANCELLATION_CONSTRAINT, "true"));
+            audioConstraints.mandatory.add(
+                    new MediaConstraints.KeyValuePair(AUDIO_AUTO_GAIN_CONTROL_CONSTRAINT, "true"));
+            audioConstraints.mandatory.add(
+                    new MediaConstraints.KeyValuePair(AUDIO_HIGH_PASS_FILTER_CONSTRAINT, "true"));
+            audioConstraints.mandatory.add(
+                    new MediaConstraints.KeyValuePair(AUDIO_NOISE_SUPPRESSION_CONSTRAINT, "true"));
         }
+
         if (peerConnectionParameters.enableLevelControl) {
             Log.d(TAG, "Enabling level control.");
             audioConstraints.mandatory.add(
