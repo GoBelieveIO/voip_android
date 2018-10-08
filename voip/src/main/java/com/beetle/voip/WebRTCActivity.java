@@ -19,12 +19,11 @@ import org.webrtc.EglBase;
 import org.webrtc.FileVideoCapturer;
 import org.webrtc.IceCandidate;
 import org.webrtc.PeerConnection;
+import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SessionDescription;
 import org.webrtc.StatsReport;
 import org.webrtc.SurfaceViewRenderer;
 import org.webrtc.VideoCapturer;
-import org.webrtc.VideoFileRenderer;
-import org.webrtc.VideoRenderer;
 import java.io.IOException;
 
 import java.util.ArrayList;
@@ -89,15 +88,9 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
 
     protected EglBase rootEglBase;
     protected SurfaceViewRenderer localRender;
-    protected VideoFileRenderer videoFileRenderer;
-    protected final List<VideoRenderer.Callbacks> remoteRenderers =
-            new ArrayList<VideoRenderer.Callbacks>();
-    protected SurfaceViewRenderer remoteRenderScreen;
+    protected SurfaceViewRenderer remoteRender;
     protected Toast logToast;
-
-
     protected PeerConnectionClient.PeerConnectionParameters peerConnectionParameters;
-
     protected boolean iceConnected;
     protected boolean isError;
     protected long callStartedTimeMs = 0;
@@ -193,11 +186,11 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
     protected void startStream() {
         logAndToast("Creating peer connection");
 
-        peerConnectionClient = PeerConnectionClient.getInstance();
+        peerConnectionClient = new PeerConnectionClient(getApplicationContext(), rootEglBase, peerConnectionParameters, this);
 
-        peerConnectionClient.createPeerConnectionFactory(
-                this, peerConnectionParameters, this);
+        PeerConnectionFactory.Options options = new PeerConnectionFactory.Options();
 
+        peerConnectionClient.createPeerConnectionFactory(options);
 
         PeerConnection.IceServer server = new PeerConnection.IceServer("stun:stun.counterpath.net:3478");
 
@@ -213,8 +206,8 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
         if (peerConnectionParameters.videoCallEnabled) {
             videoCapturer = createVideoCapturer();
         }
-        peerConnectionClient.createPeerConnection(rootEglBase.getEglBaseContext(), localRender,
-                remoteRenderers, videoCapturer);
+        peerConnectionClient.createPeerConnection(localRender,
+                remoteRender, videoCapturer);
 
         if (this.isCaller) {
             logAndToast("Creating OFFER...");
@@ -258,13 +251,10 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
             localRender.release();
             localRender = null;
         }
-        if (videoFileRenderer != null) {
-            videoFileRenderer.release();
-            videoFileRenderer = null;
-        }
-        if (remoteRenderScreen != null) {
-            remoteRenderScreen.release();
-            remoteRenderScreen = null;
+
+        if (remoteRender != null) {
+            remoteRender.release();
+            remoteRender = null;
         }
     }
 

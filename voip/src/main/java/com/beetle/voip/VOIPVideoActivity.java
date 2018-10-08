@@ -202,7 +202,7 @@ public class VOIPVideoActivity extends CallActivity  {
 
         // Create UI controls.
         localRender = (SurfaceViewRenderer) findViewById(R.id.local_video_view);
-        remoteRenderScreen = (SurfaceViewRenderer) findViewById(R.id.remote_video_view);
+        remoteRender = (SurfaceViewRenderer) findViewById(R.id.remote_video_view);
         localRenderLayout = (PercentFrameLayout) findViewById(R.id.local_video_layout);
         remoteRenderLayout = (PercentFrameLayout) findViewById(R.id.remote_video_layout);
 
@@ -215,13 +215,12 @@ public class VOIPVideoActivity extends CallActivity  {
         };
 
         localRender.setOnClickListener(listener);
-        remoteRenderScreen.setOnClickListener(listener);
-        remoteRenderers.add(remoteRenderScreen);
+        remoteRender.setOnClickListener(listener);
 
         // Create video renderers.
         rootEglBase = EglBase.create();
         localRender.init(rootEglBase.getEglBaseContext(), null);
-        remoteRenderScreen.init(rootEglBase.getEglBaseContext(), null);
+        remoteRender.init(rootEglBase.getEglBaseContext(), null);
         localRender.setZOrderMediaOverlay(true);
         updateVideoView();
 
@@ -351,7 +350,7 @@ public class VOIPVideoActivity extends CallActivity  {
         super.onConnected();
 
         localRender.setVisibility(View.VISIBLE);
-        remoteRenderScreen.setVisibility(View.VISIBLE);
+        remoteRender.setVisibility(View.VISIBLE);
         this.handUpButton.setVisibility(View.VISIBLE);
         this.acceptButton.setVisibility(View.GONE);
         this.refuseButton.setVisibility(View.GONE);
@@ -430,8 +429,8 @@ public class VOIPVideoActivity extends CallActivity  {
 
     protected void updateVideoView() {
         remoteRenderLayout.setPosition(REMOTE_X, REMOTE_Y, REMOTE_WIDTH, REMOTE_HEIGHT);
-        remoteRenderScreen.setScalingType(scalingType);
-        remoteRenderScreen.setMirror(false);
+        remoteRender.setScalingType(scalingType);
+        remoteRender.setMirror(false);
 
         if (iceConnected) {
             localRenderLayout.setPosition(
@@ -445,7 +444,7 @@ public class VOIPVideoActivity extends CallActivity  {
         localRender.setMirror(true);
 
         localRender.requestLayout();
-        remoteRenderScreen.requestLayout();
+        remoteRender.requestLayout();
     }
 
     @Override
