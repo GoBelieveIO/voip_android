@@ -2,7 +2,7 @@ apply plugin: 'com.android.library'
 
 android {
     compileSdkVersion 24
-    buildToolsVersion '27.0.3'
+    buildToolsVersion '28.0.3'
 
     defaultConfig {
         minSdkVersion 19
@@ -33,5 +33,5 @@ dependencies {
     implementation project(':asynctcp')
     api project(':imsdk')
 
-    compile files('libs/libwebrtc.jar')
+    api files('libs/libwebrtc.jar')
 }
