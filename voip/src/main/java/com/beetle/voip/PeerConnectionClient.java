@@ -3,7 +3,7 @@ package com.beetle.voip;
 import android.content.Context;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.util.Log;
 
 import org.webrtc.AudioSource;
@@ -1055,6 +1055,14 @@ public class PeerConnectionClient {
             Log.d(TAG, "Switch camera");
             CameraVideoCapturer cameraVideoCapturer = (CameraVideoCapturer) videoCapturer;
             cameraVideoCapturer.switchCamera(null);
+        } else if (videoCapturer instanceof ExternalCapturer) {
+            if (!isVideoCallEnabled() || isError || videoCapturer == null) {
+                Log.e(TAG, "Failed to switch camera. Video: " + isVideoCallEnabled() + ". Error : " + isError);
+                return; // No video is sent or only one camera is available or error happened.
+            }
+            Log.d(TAG, "Switch camera");
+            ExternalCapturer externalCapturer = (ExternalCapturer) videoCapturer;
+            externalCapturer.switchCamera();
         } else {
             Log.d(TAG, "Will not switch camera, video caputurer is not a camera");
         }

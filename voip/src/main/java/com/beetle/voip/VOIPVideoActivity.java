@@ -26,6 +26,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.beetle.im.Timer;
+import com.google.mediapipe.framework.AndroidAssetUtil;
 import com.squareup.picasso.Picasso;
 
 import org.webrtc.EglBase;
@@ -191,7 +192,7 @@ public class VOIPVideoActivity extends CallActivity  {
         headView = (ImageView) findViewById(R.id.header);
 
         if (!TextUtils.isEmpty(peerAvatar)) {
-            Picasso.with(getBaseContext())
+            Picasso.get()
                     .load(peerAvatar)
                     .placeholder(R.drawable.avatar_contact)
                     .into(headView);
@@ -217,7 +218,12 @@ public class VOIPVideoActivity extends CallActivity  {
         localRender.setOnClickListener(listener);
         remoteRender.setOnClickListener(listener);
 
+        AndroidAssetUtil.initializeNativeAssetManager(this.getApplicationContext());
+
         // Create video renderers.
+//        eglManager = new EglManager(null);
+//        eglManager.getNativeContext();
+//        rootEglBase = EglBase.createEgl14(eglManager.getEgl14Context(), EglBase.CONFIG_PLAIN);
         rootEglBase = EglBase.create();
         localRender.init(rootEglBase.getEglBaseContext(), null);
         remoteRender.init(rootEglBase.getEglBaseContext(), null);

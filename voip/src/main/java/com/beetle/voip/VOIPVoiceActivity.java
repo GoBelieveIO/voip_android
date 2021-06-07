@@ -157,7 +157,7 @@ public class VOIPVoiceActivity extends CallActivity {
 
         headView = (ImageView)findViewById(R.id.header);
         if (!TextUtils.isEmpty(peerAvatar)) {
-            Picasso.with(getBaseContext())
+            Picasso.get()
                     .load(peerAvatar)
                     .placeholder(R.drawable.avatar_contact)
                     .into(headView);

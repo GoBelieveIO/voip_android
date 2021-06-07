@@ -9,6 +9,11 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.mediapipe.glutil.EglManager;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -38,6 +43,8 @@ import java.util.Map;
  * Created by houxh on 15/9/8.
  */
 public class WebRTCActivity extends Activity implements PeerConnectionClient.PeerConnectionEvents {
+    private static boolean EXTERNAL_CAPTURER = true;
+
     public static final String EXTRA_ROOMID = "org.appspot.apprtc.ROOMID";
     public static final String EXTRA_LOOPBACK = "org.appspot.apprtc.LOOPBACK";
     public static final String EXTRA_VIDEO_CALL = "org.appspot.apprtc.VIDEO_CALL";
@@ -82,6 +89,19 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
 
     // Peer connection statistics callback period in ms.
     private static final int STAT_CALLBACK_PERIOD = 1000;
+
+
+    static {
+        // Load all native libraries needed by the app.
+        System.loadLibrary("mediapipe_jni");
+        try {
+            System.loadLibrary("opencv_java3");
+        } catch (java.lang.UnsatisfiedLinkError e) {
+            // Some example apps (e.g. template matching) require OpenCV 4.
+            System.loadLibrary("opencv_java4");
+        }
+    }
+
 
     protected PeerConnectionClient peerConnectionClient = null;
 
@@ -303,7 +323,10 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
     private VideoCapturer createVideoCapturer() {
         VideoCapturer videoCapturer = null;
         String videoFileAsCamera = getIntent().getStringExtra(EXTRA_VIDEO_FILE_AS_CAMERA);
-        if (videoFileAsCamera != null) {
+
+        if (EXTERNAL_CAPTURER) {
+            videoCapturer = new ExternalCapturer();
+        } else if (videoFileAsCamera != null) {
             try {
                 videoCapturer = new FileVideoCapturer(videoFileAsCamera);
             } catch (IOException e) {

@@ -5,7 +5,6 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.provider.Settings;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -13,9 +12,12 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import com.beetle.im.IMService;
 import com.beetle.im.RTMessage;
 import com.beetle.im.RTMessageObserver;
+import com.beetle.voip.MediaPipeActivity;
 import com.beetle.voip.VOIPActivity;
 import com.beetle.voip.VOIPCommand;
 import com.beetle.voip.VOIPVideoActivity;
@@ -35,7 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.UUID;
 
-public class MainActivity extends ActionBarActivity implements RTMessageObserver {
+public class MainActivity extends AppCompatActivity implements RTMessageObserver {
 
     private final int REQUEST_VOIP = 1;
 
@@ -185,7 +187,7 @@ public class MainActivity extends ActionBarActivity implements RTMessageObserver
                         IMService.getInstance().start();
 
                         calling = true;
-                        Intent intent = new Intent(MainActivity.this, VOIPVoiceActivity.class);
+                        Intent intent = new Intent(MainActivity.this, MediaPipeActivity.class);
                         intent.putExtra("peer_uid", peerUID);
                         intent.putExtra("peer_name", "测试");
                         intent.putExtra("current_uid", myUID);

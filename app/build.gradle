@@ -1,12 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion '28.0.3'
+    compileSdkVersion 29
+    buildToolsVersion '29.0.2'
 
     defaultConfig {
         applicationId "io.gobelieve.voip_demo"
-        minSdkVersion 19
+        minSdkVersion 21
         targetSdkVersion 24
         versionCode 1
         versionName "1.0"
@@ -53,8 +53,8 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'com.android.support:appcompat-v7:24.2.0'
-    implementation 'com.squareup.picasso:picasso:2.4.+'
+    implementation 'androidx.appcompat:appcompat:1.0.0'
+    implementation 'com.squareup.picasso:picasso:2.71828'
 
 
     implementation project(':voip')
