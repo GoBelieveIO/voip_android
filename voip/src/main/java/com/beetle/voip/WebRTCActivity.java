@@ -43,7 +43,8 @@ import java.util.Map;
  * Created by houxh on 15/9/8.
  */
 public class WebRTCActivity extends Activity implements PeerConnectionClient.PeerConnectionEvents {
-    private static boolean EXTERNAL_CAPTURER = true;
+    protected static boolean EXTERNAL_CAPTURER = false;
+    protected static boolean EXTERNAL_RENDERER = true;
 
     public static final String EXTRA_ROOMID = "org.appspot.apprtc.ROOMID";
     public static final String EXTRA_LOOPBACK = "org.appspot.apprtc.LOOPBACK";
@@ -105,10 +106,11 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
 
     protected PeerConnectionClient peerConnectionClient = null;
 
-
+    protected EglManager eglManager;
     protected EglBase rootEglBase;
     protected SurfaceViewRenderer localRender;
     protected SurfaceViewRenderer remoteRender;
+    protected FrameViewRenderer remoteFrameRender;
     protected Toast logToast;
     protected PeerConnectionClient.PeerConnectionParameters peerConnectionParameters;
     protected boolean iceConnected;
@@ -227,7 +229,7 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
             videoCapturer = createVideoCapturer();
         }
         peerConnectionClient.createPeerConnection(localRender,
-                remoteRender, videoCapturer);
+                EXTERNAL_RENDERER ? remoteFrameRender : remoteRender, videoCapturer);
 
         if (this.isCaller) {
             logAndToast("Creating OFFER...");

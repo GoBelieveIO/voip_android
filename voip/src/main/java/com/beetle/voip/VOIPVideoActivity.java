@@ -27,6 +27,7 @@ import android.widget.TextView;
 
 import com.beetle.im.Timer;
 import com.google.mediapipe.framework.AndroidAssetUtil;
+import com.google.mediapipe.glutil.EglManager;
 import com.squareup.picasso.Picasso;
 
 import org.webrtc.EglBase;
@@ -204,6 +205,7 @@ public class VOIPVideoActivity extends CallActivity  {
         // Create UI controls.
         localRender = (SurfaceViewRenderer) findViewById(R.id.local_video_view);
         remoteRender = (SurfaceViewRenderer) findViewById(R.id.remote_video_view);
+        remoteFrameRender = (FrameViewRenderer)findViewById(R.id.remote_frame_video_view);
         localRenderLayout = (PercentFrameLayout) findViewById(R.id.local_video_layout);
         remoteRenderLayout = (PercentFrameLayout) findViewById(R.id.remote_video_layout);
 
@@ -217,18 +219,32 @@ public class VOIPVideoActivity extends CallActivity  {
 
         localRender.setOnClickListener(listener);
         remoteRender.setOnClickListener(listener);
+        remoteFrameRender.setOnClickListener(listener);
+
 
         AndroidAssetUtil.initializeNativeAssetManager(this.getApplicationContext());
 
         // Create video renderers.
-//        eglManager = new EglManager(null);
-//        eglManager.getNativeContext();
-//        rootEglBase = EglBase.createEgl14(eglManager.getEgl14Context(), EglBase.CONFIG_PLAIN);
-        rootEglBase = EglBase.create();
+        eglManager = new EglManager(null);
+        eglManager.getNativeContext();
+        rootEglBase = EglBase.createEgl14(eglManager.getEgl14Context(), EglBase.CONFIG_PLAIN);
+        //rootEglBase = EglBase.create();
         localRender.init(rootEglBase.getEglBaseContext(), null);
         remoteRender.init(rootEglBase.getEglBaseContext(), null);
+        remoteFrameRender.init(getApplicationContext(), eglManager);
         localRender.setZOrderMediaOverlay(true);
+
+        if (EXTERNAL_RENDERER) {
+            remoteFrameRender.setVisibility(View.VISIBLE);
+            remoteRender.setVisibility(View.GONE);
+        } else {
+            remoteFrameRender.setVisibility(View.GONE);
+            remoteRender.setVisibility(View.VISIBLE);
+        }
+
         updateVideoView();
+
+
 
         headsetReceiver = new MusicIntentReceiver();
 
