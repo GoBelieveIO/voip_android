@@ -4,14 +4,17 @@ package io.gobelieve.voip_demo;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.beetle.im.IMService;
 import com.beetle.im.RTMessage;
@@ -34,8 +37,10 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public class MainActivity extends ActionBarActivity implements RTMessageObserver {
+public class MainActivity extends AppCompatActivity implements RTMessageObserver {
 
     private final int REQUEST_VOIP = 1;
 
@@ -52,7 +57,6 @@ public class MainActivity extends ActionBarActivity implements RTMessageObserver
     private boolean calling = false;
 
     ProgressDialog dialog;
-    AsyncTask mLoginTask;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,45 +111,46 @@ public class MainActivity extends ActionBarActivity implements RTMessageObserver
                 return;
             }
 
-            if (mLoginTask != null) {
-                return;
-            }
-
             final ProgressDialog dialog = ProgressDialog.show(this, null, "登录中...");
 
-            mLoginTask = new AsyncTask<Void, Integer, String>() {
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Handler handler = new Handler(Looper.getMainLooper());
+
+            executor.execute(new Runnable() {
                 @Override
-                protected String doInBackground(Void... urls) {
-                    return MainActivity.this.login(myUID);
+                public void run() {
+
+                    final String result = MainActivity.this.login(myUID);
+
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            dialog.dismiss();
+                            if (result != null && result.length() > 0) {
+                                //设置用户id,进入MainActivity
+                                String token = result;
+                                MainActivity.this.token = token;
+                                IMService.getInstance().setToken(token);
+                                IMService.getInstance().start();
+
+                                calling = true;
+
+                                Intent intent = new Intent(MainActivity.this, VOIPVideoActivity.class);
+                                intent.putExtra("peer_uid", peerUID);
+                                intent.putExtra("peer_name", "测试");
+                                intent.putExtra("current_uid", myUID);
+                                intent.putExtra("channel_id", UUID.randomUUID().toString());
+                                intent.putExtra("token", token);
+                                intent.putExtra("is_caller", true);
+                                startActivityForResult(intent, REQUEST_VOIP);
+
+                            } else {
+                                Toast.makeText(MainActivity.this, "登陆失败", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
                 }
-
-                @Override
-                protected void onPostExecute(String result) {
-                    mLoginTask = null;
-                    dialog.dismiss();
-                    if (result != null && result.length() > 0) {
-                        //设置用户id,进入MainActivity
-                        String token = result;
-                        MainActivity.this.token = token;
-                        IMService.getInstance().setToken(token);
-                        IMService.getInstance().start();
-
-                        calling = true;
-
-                        Intent intent = new Intent(MainActivity.this, VOIPVideoActivity.class);
-                        intent.putExtra("peer_uid", peerUID);
-                        intent.putExtra("peer_name", "测试");
-                        intent.putExtra("current_uid", myUID);
-                        intent.putExtra("channel_id", UUID.randomUUID().toString());
-                        intent.putExtra("token", token);
-                        intent.putExtra("is_caller", true);
-                        startActivityForResult(intent, REQUEST_VOIP);
-
-                    } else {
-                        Toast.makeText(MainActivity.this, "登陆失败", Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }.execute();
+            });
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -160,45 +165,43 @@ public class MainActivity extends ActionBarActivity implements RTMessageObserver
                 return;
             }
 
-
-            if (mLoginTask != null) {
-                return;
-            }
-
             final ProgressDialog dialog = ProgressDialog.show(this, null, "登录中...");
 
-            mLoginTask = new AsyncTask<Void, Integer, String>() {
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Handler handler = new Handler(Looper.getMainLooper());
+            executor.execute(new Runnable() {
                 @Override
-                protected String doInBackground(Void... urls) {
-                    return MainActivity.this.login(myUID);
+                public void run() {
+                    final String result = MainActivity.this.login(myUID);
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+
+                            dialog.dismiss();
+                            if (result != null && result.length() > 0) {
+                                //设置用户id,进入MainActivity
+                                String token = result;
+                                MainActivity.this.token = token;
+                                IMService.getInstance().setToken(token);
+                                IMService.getInstance().start();
+
+                                calling = true;
+                                Intent intent = new Intent(MainActivity.this, VOIPVoiceActivity.class);
+                                intent.putExtra("peer_uid", peerUID);
+                                intent.putExtra("peer_name", "测试");
+                                intent.putExtra("current_uid", myUID);
+                                intent.putExtra("channel_id", UUID.randomUUID().toString());
+                                intent.putExtra("token", token);
+                                intent.putExtra("is_caller", true);
+                                startActivityForResult(intent, REQUEST_VOIP);
+
+                            } else {
+                                Toast.makeText(MainActivity.this, "登陆失败", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
                 }
-
-                @Override
-                protected void onPostExecute(String result) {
-                    mLoginTask = null;
-                    dialog.dismiss();
-                    if (result != null && result.length() > 0) {
-                        //设置用户id,进入MainActivity
-                        String token = result;
-                        MainActivity.this.token = token;
-                        IMService.getInstance().setToken(token);
-                        IMService.getInstance().start();
-
-                        calling = true;
-                        Intent intent = new Intent(MainActivity.this, VOIPVoiceActivity.class);
-                        intent.putExtra("peer_uid", peerUID);
-                        intent.putExtra("peer_name", "测试");
-                        intent.putExtra("current_uid", myUID);
-                        intent.putExtra("channel_id", UUID.randomUUID().toString());
-                        intent.putExtra("token", token);
-                        intent.putExtra("is_caller", true);
-                        startActivityForResult(intent, REQUEST_VOIP);
-
-                    } else {
-                        Toast.makeText(MainActivity.this, "登陆失败", Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }.execute();
+            });
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -214,45 +217,45 @@ public class MainActivity extends ActionBarActivity implements RTMessageObserver
                 return;
             }
 
-
-            if (mLoginTask != null) {
-                return;
-            }
-
             final ProgressDialog dialog = ProgressDialog.show(this, null, "登录中...");
 
-            mLoginTask = new AsyncTask<Void, Integer, String>() {
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Handler handler = new Handler(Looper.getMainLooper());
+
+            executor.execute(new Runnable() {
                 @Override
-                protected String doInBackground(Void... urls) {
-                    return MainActivity.this.login(myUID);
+                public void run() {
+                    final String result = MainActivity.this.login(myUID);
+                    //Background work here
+
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            dialog.dismiss();
+                            if (result != null && result.length() > 0) {
+                                //设置用户id,进入MainActivity
+                                String token = result;
+                                MainActivity.this.token = token;
+                                IMService.getInstance().setToken(token);
+                                IMService.getInstance().start();
+                                IMService.getInstance().addRTObserver(MainActivity.this);
+
+                                ProgressDialog dialog = ProgressDialog.show(MainActivity.this, null, "等待中...");
+
+                                dialog.setTitle("等待中...");
+
+                                MainActivity.this.dialog = dialog;
+                                MainActivity.this.myUID = myUID;
+                                MainActivity.this.peerUID = peerUID;
+
+                            } else {
+                                dialog.dismiss();
+                                Toast.makeText(MainActivity.this, "登陆失败", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
                 }
-
-                @Override
-                protected void onPostExecute(String result) {
-                    dialog.dismiss();
-                    mLoginTask = null;
-                    if (result != null && result.length() > 0) {
-                        //设置用户id,进入MainActivity
-                        String token = result;
-                        MainActivity.this.token = token;
-                        IMService.getInstance().setToken(token);
-                        IMService.getInstance().start();
-                        IMService.getInstance().addRTObserver(MainActivity.this);
-
-                        ProgressDialog dialog = ProgressDialog.show(MainActivity.this, null, "等待中...");
-
-                        dialog.setTitle("等待中...");
-
-                        MainActivity.this.dialog = dialog;
-                        MainActivity.this.myUID = myUID;
-                        MainActivity.this.peerUID = peerUID;
-
-                    } else {
-                        dialog.dismiss();
-                        Toast.makeText(MainActivity.this, "登陆失败", Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }.execute();
+            });
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -260,7 +263,7 @@ public class MainActivity extends ActionBarActivity implements RTMessageObserver
 
     private String login(long uid) {
         //调用app自身的登陆接口获取im服务必须的access token
-        String URL = "http://demo.gobelieve.io";
+        String URL = "https://demo.gobelieve.io";
         String uri = String.format("%s/auth/token", URL);
 
         try {
@@ -307,10 +310,9 @@ public class MainActivity extends ActionBarActivity implements RTMessageObserver
         return "";
     }
 
-
-
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
         IMService.getInstance().stop();
         calling = false;
     }
