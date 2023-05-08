@@ -6,6 +6,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
@@ -15,23 +17,23 @@ import org.json.JSONObject;
 import org.webrtc.Camera1Enumerator;
 import org.webrtc.Camera2Enumerator;
 import org.webrtc.CameraEnumerator;
+import org.webrtc.CameraVideoCapturer;
 import org.webrtc.EglBase;
 import org.webrtc.FileVideoCapturer;
 import org.webrtc.IceCandidate;
+import org.webrtc.Logging;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SessionDescription;
 import org.webrtc.StatsReport;
+import org.webrtc.SurfaceTextureHelper;
 import org.webrtc.SurfaceViewRenderer;
 import org.webrtc.VideoCapturer;
 import java.io.IOException;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-
-
+import java.util.concurrent.Executor;
 
 
 /**
@@ -83,8 +85,10 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
     // Peer connection statistics callback period in ms.
     private static final int STAT_CALLBACK_PERIOD = 1000;
 
-    protected PeerConnectionClient peerConnectionClient = null;
+    private static final int HD_VIDEO_WIDTH = 1280;
+    private static final int HD_VIDEO_HEIGHT = 720;
 
+    protected PeerConnectionClient peerConnectionClient = null;
 
     protected EglBase rootEglBase;
     protected SurfaceViewRenderer localRender;
@@ -95,16 +99,21 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
     protected boolean isError;
     protected long callStartedTimeMs = 0;
 
-
     protected boolean isCaller;
     protected String turnUserName;
     protected String turnPassword;
 
+    private SurfaceTextureHelper surfaceTextureHelper;
+    private VideoCapturer videoCapturer;
+    private Executor executor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Intent intent = getIntent();
+
+        Handler handler = new Handler(Looper.getMainLooper());
+        executor = new HandlerExecutor(handler);
 
         boolean loopback = intent.getBooleanExtra(EXTRA_LOOPBACK, false);
         boolean tracing = intent.getBooleanExtra(EXTRA_TRACING, false);
@@ -176,21 +185,19 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
         return null;
     }
 
-
     protected void updateVideoView() {
 
     }
 
 
-
     protected void startStream() {
         logAndToast("Creating peer connection");
 
-        peerConnectionClient = new PeerConnectionClient(getApplicationContext(), rootEglBase, peerConnectionParameters, this);
+        peerConnectionClient = new PeerConnectionClient(getApplicationContext(), executor, peerConnectionParameters, this);
 
         PeerConnectionFactory.Options options = new PeerConnectionFactory.Options();
 
-        peerConnectionClient.createPeerConnectionFactory(options);
+        peerConnectionClient.createPeerConnectionFactory(options, rootEglBase);
 
         PeerConnection.IceServer server = new PeerConnection.IceServer("stun:stun.counterpath.net:3478");
 
@@ -202,12 +209,32 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
         peerConnectionClient.addIceServer(server);
         peerConnectionClient.addIceServer(server2);
 
-        VideoCapturer videoCapturer = null;
         if (peerConnectionParameters.videoCallEnabled) {
             videoCapturer = createVideoCapturer();
         }
-        peerConnectionClient.createPeerConnection(localRender,
-                remoteRender, videoCapturer);
+        peerConnectionClient.createPeerConnection(localRender, remoteRender);
+
+        if (peerConnectionParameters.videoCallEnabled) {
+            int videoWidth = peerConnectionParameters.videoWidth;
+            int videoHeight = peerConnectionParameters.videoHeight;
+            int videoFps = peerConnectionParameters.videoFps;
+
+            // If video resolution is not specified, default to HD.
+            if (videoWidth == 0 || videoHeight == 0) {
+                videoWidth = HD_VIDEO_WIDTH;
+                videoHeight = HD_VIDEO_HEIGHT;
+            }
+
+            // If fps is not specified, default to 30.
+            if (videoFps == 0) {
+                videoFps = 30;
+            }
+            Logging.d(TAG, "Capturing format: " + videoWidth + "x" + videoHeight + "@" + videoFps);
+            surfaceTextureHelper =
+                    SurfaceTextureHelper.create("CaptureThread", rootEglBase.getEglBaseContext());
+            videoCapturer.initialize(surfaceTextureHelper, getApplicationContext(), peerConnectionClient.getVideoSource().getCapturerObserver());
+            videoCapturer.startCapture(videoWidth, videoHeight, videoFps);
+        }
 
         if (this.isCaller) {
             logAndToast("Creating OFFER...");
@@ -218,15 +245,31 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
     }
 
     protected void stopStream() {
-
         logAndToast("Remote end hung up; dropping PeerConnection");
         disconnect();
     }
 
-    public void switchCamera(View v ) {
-        if (peerConnectionClient != null) {
-            peerConnectionClient.switchCamera();
+    private void switchCameraInternal() {
+        if (videoCapturer instanceof CameraVideoCapturer) {
+            if (videoCapturer == null) {
+                Log.e(TAG, "Failed to switch camera. ");
+                return; // No video is sent or only one camera is available or error happened.
+            }
+            Log.d(TAG, "Switch camera");
+            CameraVideoCapturer cameraVideoCapturer = (CameraVideoCapturer) videoCapturer;
+            cameraVideoCapturer.switchCamera(null);
+        } else {
+            Log.d(TAG, "Will not switch camera, video caputurer is not a camera");
         }
+    }
+
+    public void switchCamera(View v ) {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                switchCameraInternal();
+            }
+        });
     }
 
     public void toogleVideo(View v) {
@@ -243,6 +286,22 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
 
     // Disconnect from remote resources, dispose of local resources, and exit.
     private void disconnect() {
+        if (videoCapturer != null) {
+            Log.d(TAG, "Stopping capture.");
+            try {
+                videoCapturer.stopCapture();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            videoCapturer.dispose();
+            videoCapturer = null;
+        }
+
+        if (surfaceTextureHelper != null) {
+            surfaceTextureHelper.dispose();
+            surfaceTextureHelper = null;
+        }
+
         if (peerConnectionClient != null) {
             peerConnectionClient.close();
             peerConnectionClient = null;
@@ -256,8 +315,12 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
             remoteRender.release();
             remoteRender = null;
         }
-    }
 
+        if (rootEglBase != null) {
+            rootEglBase.release();
+            rootEglBase = null;
+        }
+    }
 
     @Override
     protected void onDestroy () {
@@ -389,7 +452,6 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
             reportError("WebSocket message JSON parsing error: " + e.toString());
         }
     }
-
 
     public void onRemoteDescription(final SessionDescription sdp) {
         final long delta = System.currentTimeMillis() - callStartedTimeMs;
@@ -674,5 +736,17 @@ public class WebRTCActivity extends Activity implements PeerConnectionClient.Pee
     @Override
     public void onPeerConnectionError(final String description) {
         reportError(description);
+    }
+
+
+    class HandlerExecutor implements Executor {
+        private Handler handler;
+        HandlerExecutor(Handler handler) {
+            this.handler = handler;
+        }
+        @Override
+        public void execute(Runnable command) {
+            handler.post(command);
+        }
     }
 }
